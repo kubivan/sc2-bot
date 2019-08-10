@@ -23,16 +23,22 @@ public:
 
 private:
     const size_t rushers_count = 1;
-    struct Rusher
+    class Rusher 
     {
+    public:
         enum class State {Idle, Scouting, Rushing};
-        Rusher( const sc2::Unit* rusher);
-
+        Rusher( const sc2::Unit* rusher, const API* api = nullptr);
+        
         bool operator<(const Rusher& other) const;
-        void step(const API& api) const;
+        void step() const;
+    private:
+        void rush() const;
 
         const sc2::Unit* rusher;
         mutable State state = State::Idle;
+        const API* api;
+        mutable std::vector<const sc2::Unit*> m_closest_enemies;
+        mutable sc2::Point2D target;
     };
 
     void assign_rushers();

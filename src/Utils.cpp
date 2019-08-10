@@ -82,9 +82,13 @@ sc2::Point2D build_near(const API& api
     , sc2::ABILITY_ID building
     , bool queued)
 {
+    const auto max_iterations = 10;
     auto pos = rand_point_near(center, radius);
+    int i = 0;
     while (!api.query->Placement(building, pos))
     {
+        if (i++ > max_iterations)
+            break;
         pos = rand_point_near(center, radius);
     }
 
