@@ -18,69 +18,85 @@ void CannonRush::step()
 
     for (const auto& rusher : m_rushers)
     {
-        rusher.step(m_api);
+        rusher.step();
     }
 }
 
-void CannonRush::Rusher::step(const API& api) const
+void CannonRush::Rusher::step() const
 {
-    const auto enemy_base = enemy_base_location(api);
-    const auto distance = sc2::Distance2D(enemy_base, sc2::Point2D{ rusher->pos });
-    //std::cout << (state == State::Scouting ? "SCOUTING" : "RUSHING") << " distance " << distance << std::endl;
+    m_closest_enemies = api->obs->GetUnits([&](const sc2::Unit& u) {
+        return u.alliance == sc2::Unit::Enemy; 
+    });
     switch (state)
     {
     case Rusher::State::Idle:
-        api.actions->UnitCommand(rusher, sc2::ABILITY_ID::STOP);
+        api->actions->UnitCommand(rusher, sc2::ABILITY_ID::STOP);
+
+        target = enemy_base_location(*api);
         state = State::Scouting;
         break;
 
     case Rusher::State::Scouting:
+        if (!m_closest_enemies.empty())
+        {
+            state = State::Rushing;
+            break;
+        }
         if (!rusher->orders.empty())
         {
             break;
         }
-        if (distance > 5 )
+        if (sc2::DistanceSquared2D(target, sc2::Point2D{ rusher->pos }) > 5*5 )
         {
-            api.actions->UnitCommand(rusher, sc2::ABILITY_ID::MOVE, enemy_base);
+            api->actions->UnitCommand(rusher, sc2::ABILITY_ID::MOVE, target);
         }
         else
         {
             state = Rusher::State::Rushing;
-            step(api);
         }
         break;
     case Rusher::State::Rushing:
     {
-        if (!rusher->orders.empty())
-        {
-            return;
-        }
-        const auto forges = api.obs->GetUnits(sc2::IsUnit(sc2::UNIT_TYPEID::PROTOSS_FORGE));
-        if (forges.empty())
-        {
-            api.actions->UnitCommand(rusher, sc2::ABILITY_ID::MOVE, rand_point_near(rusher->pos, 5.), true);
-        }
-        else if(forges.front()->build_progress == 1.f)
-        {
-            const auto near_pylons = api.obs->GetUnits([&](auto& u) {
-                return u.unit_type == sc2::UNIT_TYPEID::PROTOSS_PYLON
-                    && sc2::DistanceSquared2D(rusher->pos, u.pos) < 8.f; 
-            });
-            if (near_pylons.size() < 2)
-            {
-                api.actions->UnitCommand(rusher, sc2::ABILITY_ID::BUILD_PYLON, rand_point_near(rusher->pos, 5.));
-            }
-            else
-            {
-                api.actions->UnitCommand(rusher, sc2::ABILITY_ID::BUILD_PHOTONCANNON, rand_point_near(near_pylons.front()->pos, 5.));
-            }
-        }
-
+        rush();
         break;
     }
     default:
         assert(false);
         break;
+    }
+}
+
+void CannonRush::Rusher::rush() const 
+{
+    if (!rusher->orders.empty())
+    {
+        return;
+    }
+    if (m_closest_enemies.empty())
+    {
+        state = State::Scouting;
+        return;
+    }
+    const auto forges = api->obs->GetUnits(sc2::IsUnit(sc2::UNIT_TYPEID::PROTOSS_FORGE));
+    if (forges.empty() || forges.front()->build_progress != 1.f)
+    {
+        api->actions->UnitCommand(rusher, sc2::ABILITY_ID::MOVE, rand_point_near(rusher->pos, 5.), true);
+    }
+    else
+    {
+        const auto enemy = m_closest_enemies.front();
+        const auto near_pylons = api->obs->GetUnits([&](auto& u) {
+            return u.unit_type == sc2::UNIT_TYPEID::PROTOSS_PYLON
+                && sc2::DistanceSquared2D(enemy->pos, u.pos) < 4.f * 4.f;
+        });
+        if (near_pylons.size() < 2)
+        {
+            api->actions->UnitCommand(rusher, sc2::ABILITY_ID::BUILD_PYLON, rand_point_near(enemy->pos, 4.));
+        }
+        else
+        {
+            build_near(*api, rusher, near_pylons.front()->pos, 4.f, sc2::ABILITY_ID::BUILD_PHOTONCANNON);
+        }
     }
 }
 
@@ -105,7 +121,7 @@ void CannonRush::assign_rushers()
 {
     while (m_rushers.size() != rushers_count)
     {
-        m_rushers.insert(get_free_probe());
+        m_rushers.emplace(get_free_probe(), &m_api);
     }
 }
 
@@ -118,8 +134,9 @@ const sc2::Unit* CannonRush::get_free_probe()
     }).front();
 }
 
-CannonRush::Rusher::Rusher(const sc2::Unit* rusher)
+CannonRush::Rusher::Rusher(const sc2::Unit* rusher, const API* api)
     : rusher(rusher)
+    , api(api)
 {
 }
 
