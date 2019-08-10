@@ -1,0 +1,3 @@
+[submodule "s2client-api"]
+	path = external/s2client-api
+	url = https://github.com/kubivan/s2client-api
