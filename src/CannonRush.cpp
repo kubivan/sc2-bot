@@ -2,6 +2,28 @@
 
 #include <Utils.h>
 #include <iostream>
+#include <sstream>
+#include <numeric>
+
+
+constexpr float pylon_radius = 6.5f;
+constexpr float pylon_radius_squared = pylon_radius*pylon_radius;
+
+bool is_building(const sc2::Unit& u)
+{
+    return  u.unit_type != sc2::UNIT_TYPEID::PROTOSS_ADEPT
+        && u.unit_type != sc2::UNIT_TYPEID::PROTOSS_PROBE
+        && u.unit_type != sc2::UNIT_TYPEID::PROTOSS_ZEALOT
+        && u.unit_type != sc2::UNIT_TYPEID::PROTOSS_STALKER;
+}
+
+sc2::Units get_enemy_buildings(const API& api)
+{
+    return api.obs->GetUnits([&api](const sc2::Unit& u)
+    {
+        return is_building(u);
+    });
+}
 
 CannonRush::~CannonRush()
 {
@@ -24,35 +46,37 @@ void CannonRush::step()
 
 void CannonRush::Rusher::step() const
 {
-    m_closest_enemies = api->obs->GetUnits([&](const sc2::Unit& u) {
-        return u.alliance == sc2::Unit::Enemy; 
-    });
-    switch (state)
+    if (m_closest_targets.empty())
+    {
+        m_closest_targets = m_api->obs->GetUnits([&](const sc2::Unit& u) {
+            return u.alliance == sc2::Unit::Enemy && is_building(u);
+        });
+    }
+    switch (m_state)
     {
     case Rusher::State::Idle:
-        api->actions->UnitCommand(rusher, sc2::ABILITY_ID::STOP);
+        m_api->actions->UnitCommand(m_rusher, sc2::ABILITY_ID::STOP);
 
-        target = enemy_base_location(*api);
-        state = State::Scouting;
+        m_target = enemy_base_location(*m_api);
+        return set_state(State::Scouting);
         break;
 
     case Rusher::State::Scouting:
-        if (!m_closest_enemies.empty())
-        {
-            state = State::Rushing;
-            break;
-        }
-        if (!rusher->orders.empty())
+        if (!m_rusher->orders.empty())
         {
             break;
         }
-        if (sc2::DistanceSquared2D(target, sc2::Point2D{ rusher->pos }) > 5*5 )
+        if (sc2::DistanceSquared2D(m_target, sc2::Point2D{ m_rusher->pos }) > 5*5 )
         {
-            api->actions->UnitCommand(rusher, sc2::ABILITY_ID::MOVE, target);
+            m_api->actions->UnitCommand(m_rusher, sc2::ABILITY_ID::MOVE, m_target);
+        }
+        else if (has_forge() && m_api->obs->GetMinerals() > 150)
+        {
+            return set_state(Rusher::State::Rushing);
         }
         else
         {
-            state = Rusher::State::Rushing;
+            m_api->actions->UnitCommand(m_rusher, sc2::ABILITY_ID::MOVE, rand_point_near(m_rusher->pos, 5.), true);
         }
         break;
     case Rusher::State::Rushing:
@@ -66,38 +90,62 @@ void CannonRush::Rusher::step() const
     }
 }
 
-void CannonRush::Rusher::rush() const 
+bool CannonRush::Rusher::has_forge() const
 {
-    if (!rusher->orders.empty())
+    const auto forges = m_api->obs->GetUnits(sc2::IsUnit(sc2::UNIT_TYPEID::PROTOSS_FORGE));
+    return !forges.empty() && forges.front()->build_progress == 1.f;
+}
+
+void CannonRush::Rusher::rush() const
+{
+    if (!m_rusher->orders.empty())
     {
         return;
     }
-    if (m_closest_enemies.empty())
+    if (m_api->obs->GetMinerals() < 150)
     {
-        state = State::Scouting;
+        return set_state(State::Scouting);
+    }
+    if (m_closest_targets.empty())
+    {
+        return set_state(State::Scouting);
+    }
+
+    m_target = m_closest_targets.back()->pos;
+    const auto near_pylons = m_api->obs->GetUnits([&](auto& u) {
+        return u.unit_type == sc2::UNIT_TYPEID::PROTOSS_PYLON
+            && sc2::DistanceSquared2D(m_target, u.pos) < pylon_radius_squared;
+    });
+    if (near_pylons.size() < 2)
+    {
+        return m_api->actions->UnitCommand(m_rusher, sc2::ABILITY_ID::BUILD_PYLON, rand_point_near(m_target, 4.));
+    }
+    if (!std::any_of(near_pylons.begin(),
+        near_pylons.end(),
+        [](const sc2::Unit* u) {return u->build_progress == 1.f; }))
+    {
+        //no pylons built
+       return m_api->actions->UnitCommand(m_rusher, sc2::ABILITY_ID::MOVE, rand_point_near(m_rusher->pos, 5.), true);
+    }
+
+    const auto photons = m_api->obs->GetUnits([&](auto& u) {
+        return u.unit_type == sc2::UNIT_TYPEID::PROTOSS_PHOTONCANNON
+            && sc2::DistanceSquared2D(m_target, u.pos) < pylon_radius_squared;
+    });
+    if (photons.empty())
+    {
+        build_near(*m_api, m_rusher, near_pylons.front()->pos, 4.f, sc2::ABILITY_ID::BUILD_PHOTONCANNON);
         return;
     }
-    const auto forges = api->obs->GetUnits(sc2::IsUnit(sc2::UNIT_TYPEID::PROTOSS_FORGE));
-    if (forges.empty() || forges.front()->build_progress != 1.f)
-    {
-        api->actions->UnitCommand(rusher, sc2::ABILITY_ID::MOVE, rand_point_near(rusher->pos, 5.), true);
-    }
-    else
-    {
-        const auto enemy = m_closest_enemies.front();
-        const auto near_pylons = api->obs->GetUnits([&](auto& u) {
-            return u.unit_type == sc2::UNIT_TYPEID::PROTOSS_PYLON
-                && sc2::DistanceSquared2D(enemy->pos, u.pos) < 4.f * 4.f;
-        });
-        if (near_pylons.size() < 2)
-        {
-            api->actions->UnitCommand(rusher, sc2::ABILITY_ID::BUILD_PYLON, rand_point_near(enemy->pos, 4.));
-        }
-        else
-        {
-            build_near(*api, rusher, near_pylons.front()->pos, 4.f, sc2::ABILITY_ID::BUILD_PHOTONCANNON);
-        }
-    }
+    m_closest_targets.pop_back();
+}
+
+void CannonRush::Rusher::set_state(State newstate) const
+{
+    std::stringstream ss;
+    ss << "Change state from " << (int)m_state << " to " << (int)newstate;
+    m_api->actions->SendChat(ss.str());
+    m_state = newstate;
 }
 
 void CannonRush::unitCreated(const sc2::Unit* unit)
@@ -110,10 +158,9 @@ void CannonRush::buildingConstructionComplete(const sc2::Unit* unit)
 
 void CannonRush::unitDestroyed(const sc2::Unit* unit)
 {
-    std::cout << "Unit destroyed" << std::endl;
     if (m_rushers.erase(unit))
     {
-        std::cout << "Rusher destroyed. " << std::endl;
+        m_api.actions->SendChat("Rusher destroyed!");
     }
 }
 
@@ -135,12 +182,12 @@ const sc2::Unit* CannonRush::get_free_probe()
 }
 
 CannonRush::Rusher::Rusher(const sc2::Unit* rusher, const API* api)
-    : rusher(rusher)
-    , api(api)
+    : m_rusher(rusher)
+    , m_api(api)
 {
 }
 
 bool CannonRush::Rusher::operator<(const Rusher & other) const
 {
-    return rusher < other.rusher;
+    return m_rusher < other.m_rusher;
 }

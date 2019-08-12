@@ -60,13 +60,11 @@ void MacroManager::executeBuildOrder()
     const auto order = m_build_order.front();
     if (!canAfford(order))
     {
-        std::cout << "cannot afford " << (int)order << std::endl;
         return;
     }
     auto nexus = m_api.obs->GetUnits([](const sc2::Unit& u) {return u.unit_type == sc2::UNIT_TYPEID::PROTOSS_NEXUS; }).front();
     if (order == sc2::ABILITY_ID::TRAIN_PROBE && nexus->orders.empty())
     {
-        std::cout << "train probe " << (int) order << std::endl;
         m_api.actions->UnitCommand(nexus, sc2::ABILITY_ID::TRAIN_PROBE);
         return;
     }
