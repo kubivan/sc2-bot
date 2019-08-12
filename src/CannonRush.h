@@ -26,19 +26,22 @@ private:
     class Rusher 
     {
     public:
+
         enum class State {Idle, Scouting, Rushing};
         Rusher( const sc2::Unit* rusher, const API* api = nullptr);
         
         bool operator<(const Rusher& other) const;
         void step() const;
     private:
+        bool has_forge() const;
         void rush() const;
+        void set_state(State newstate) const;
 
-        const sc2::Unit* rusher;
-        mutable State state = State::Idle;
-        const API* api;
-        mutable std::vector<const sc2::Unit*> m_closest_enemies;
-        mutable sc2::Point2D target;
+        const sc2::Unit* m_rusher;
+        mutable State m_state = State::Idle;
+        const API* m_api;
+        mutable std::vector<const sc2::Unit*> m_closest_targets;
+        mutable sc2::Point2D m_target;
     };
 
     void assign_rushers();
