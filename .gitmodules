@@ -1,6 +1,6 @@
 [submodule "s2client-api"]
 	path = external/s2client-api
-	url = https://github.com/kubivan/s2client-api
+	url = https://github.com/alkurbatov/cpp-sc2
 [submodule "glm"]
 	path = external/glm
 	url = https://github.com/g-truc/glm.git

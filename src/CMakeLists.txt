@@ -11,16 +11,20 @@ set(KUBOT_SOURCES
 	MacroManager.h
 	MacroManager.cpp
 	EventListener.h
+	SC2.h
+	SC2.cpp
 	)
 
 add_executable(kubot ${KUBOT_SOURCES})
 
 target_include_directories(kubot PUBLIC
+    ${CMAKE_SOURCE_DIR}/external/glm
     ${CMAKE_SOURCE_DIR}/external/s2client-api/include
     ${CMAKE_SOURCE_DIR}/external/s2client-api/protocol
     ${CMAKE_SOURCE_DIR}/src
 	${CMAKE_BINARY_DIR}/external/s2client-api/generated
     )
+
 target_compile_features(kubot PUBLIC cxx_std_14)
 target_link_libraries(kubot
     sc2api sc2lib sc2utils sc2protocol

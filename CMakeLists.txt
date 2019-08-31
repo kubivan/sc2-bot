@@ -16,4 +16,5 @@ set(BUILD_API_EXAMPLES OFF CACHE INTERNAL "" FORCE)
 set(BUILD_API_TESTS OFF CACHE INTERNAL "" FORCE)
 
 add_subdirectory("external/s2client-api")
+add_subdirectory("external/glm")
 add_subdirectory("src")

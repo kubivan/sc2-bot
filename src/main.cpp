@@ -10,7 +10,7 @@ int main(int argc, char* argv[]) {
 	Kubot bot;
 	coordinator.SetParticipants({
 		sc2::CreateParticipant(sc2::Race::Protoss, &bot),
-		sc2::CreateComputer(sc2::Race::Protoss, sc2::Difficulty::MediumHard)
+		sc2::CreateComputer(sc2::Race::Protoss, sc2::Difficulty::HardVeryHard)
 		});
 
 	coordinator.LaunchStarcraft();

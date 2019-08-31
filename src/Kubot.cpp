@@ -2,10 +2,15 @@
 #include <Kubot.h>
 #include <MacroManager.h>
 #include <Utils.h>
+#include <glm/vec2.hpp>
 
 using namespace sc2;
 
-Kubot::~Kubot() {};
+Kubot::~Kubot() {}
+Kubot::Kubot()
+	: m_sc2(*this)
+{
+}
 
 void
 Kubot::OnGameStart()
@@ -13,16 +18,12 @@ Kubot::OnGameStart()
     auto obs = Observation();
     dump_pahting_grid(obs->GetGameInfo().pathing_grid, "map.txt");
 
-    m_api.actions = Actions();
-    m_api.obs = Observation();
-    m_api.query = Query();
-
-    auto macro = std::make_unique<MacroManager>( m_api, MacroManager::BuildOrder({ sc2::ABILITY_ID::TRAIN_PROBE
+    auto macro = std::make_unique<MacroManager>( m_sc2, MacroManager::BuildOrder({ sc2::ABILITY_ID::TRAIN_PROBE
                                                , sc2::ABILITY_ID::TRAIN_PROBE
                                                , sc2::ABILITY_ID::BUILD_PYLON
                                                , sc2::ABILITY_ID::BUILD_FORGE }));
     m_listeners.push_back(std::move(macro));
-    m_listeners.push_back(std::make_unique<CannonRush>(m_api));
+    m_listeners.push_back(std::make_unique<CannonRush>(m_sc2));
 }
 
 void Kubot::OnStep()
@@ -31,6 +32,7 @@ void Kubot::OnStep()
     {
         listener->step();
     }
+	m_sc2.debug().SendDebug();
 }
 
 
