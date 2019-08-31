@@ -1,5 +1,7 @@
 #include "MacroManager.h"
 
+#include <SC2.h>
+
 #include <Utils.h>
 #include <iostream>
 
@@ -13,10 +15,11 @@ bool isHarvester(const sc2::Unit& u)
         || (u.orders.front().ability_id == sc2::ABILITY_ID::HARVEST_RETURN)
         );
 }
+
 }
 
-MacroManager::MacroManager(const API& api, BuildOrder build_order)
-    : m_api(api)
+MacroManager::MacroManager(SC2& sc2, BuildOrder build_order)
+    : m_sc2(sc2)
     , m_build_order(std::move(build_order))
 {
 }
@@ -62,15 +65,15 @@ void MacroManager::executeBuildOrder()
     {
         return;
     }
-    auto nexus = m_api.obs->GetUnits([](const sc2::Unit& u) {return u.unit_type == sc2::UNIT_TYPEID::PROTOSS_NEXUS; }).front();
+	auto nexus = m_sc2.obs().GetUnits([](const sc2::Unit& u) {std::cout << (int)u.unit_type << std::endl; return u.unit_type == sc2::UNIT_TYPEID::PROTOSS_NEXUS; }).front();
     if (order == sc2::ABILITY_ID::TRAIN_PROBE && nexus->orders.empty())
     {
-        m_api.actions->UnitCommand(nexus, sc2::ABILITY_ID::TRAIN_PROBE);
+        m_sc2.act().UnitCommand(nexus, sc2::ABILITY_ID::TRAIN_PROBE);
         return;
     }
 
     // buildings
-    if (!m_api.obs->GetUnits([order](const sc2::Unit& u)
+    if (!m_sc2.obs().GetUnits([order](const sc2::Unit& u)
     {
         auto& orders = u.orders;
         return std::find_if(orders.cbegin(), orders.cend(), [order](const auto o) {
@@ -87,18 +90,21 @@ void MacroManager::executeBuildOrder()
         return;
     }
 
-    const auto building_position = is_pylon ? nexus->pos: (*m_pylons.cbegin())->pos;
-    auto probes = m_api.obs->GetUnits(isHarvester);
-    assert(!probes.empty());
+    auto probes = m_sc2.obs().GetUnits(isHarvester);
     auto builder = probes.front();
     auto order_bak = builder->orders.front();
-    build_near(m_api, builder, building_position, 5.f, order, true);
-    m_api.actions->UnitCommand(builder, order_bak.ability_id, order_bak.target_pos, true);
+	if (is_pylon)
+	{
+		auto pos = rand_point_around(nexus->pos, 6.f);
+		m_sc2.act().UnitCommand(builder, sc2::ABILITY_ID::BUILD_PYLON, pos);
+		return;
+	}
+	build_near(m_sc2, builder, (*m_pylons.cbegin())->pos, 5.f, order);
 }
 
 void MacroManager::checkProbes()
 {
-    if (m_api.obs->GetMinerals() < 50)
+    if (m_sc2.obs().GetMinerals() < 50)
     {
         return;
     }
@@ -107,7 +113,7 @@ void MacroManager::checkProbes()
 }
 void MacroManager::checkSupply()
 {
-    if (m_api.obs->GetMinerals() < 100)
+    if (m_sc2.obs().GetMinerals() < 100)
     {
         return;
     }
@@ -118,7 +124,7 @@ void MacroManager::checkSupply()
 bool MacroManager::canAfford(BuildOrder::value_type item)
 {
     //TODO: get buildings cost via sc2api
-    const auto minerals = m_api.obs->GetMinerals();
+    const auto minerals = m_sc2.obs().GetMinerals();
     switch (item)
     {
     case sc2::ABILITY_ID::TRAIN_PROBE:
