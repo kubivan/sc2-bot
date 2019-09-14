@@ -13,6 +13,15 @@ set(KUBOT_SOURCES
 	EventListener.h
 	SC2.h
 	SC2.cpp
+	MapSegmentation.h
+	MapSegmentation.cpp
+	utils/GridView.h
+	utils/GridView.cpp
+	utils/Grid.h
+	utils/GridUtils.h
+	utils/UnitQuery.h
+	utils/UnitQuery.cpp
+	utils/UnitTraits.h
 	)
 
 add_executable(kubot ${KUBOT_SOURCES})

@@ -2,7 +2,7 @@
 #include <Kubot.h>
 #include <MacroManager.h>
 #include <Utils.h>
-#include <glm/vec2.hpp>
+#include <MapSegmentation.h>
 
 using namespace sc2;
 
@@ -17,6 +17,8 @@ Kubot::OnGameStart()
 {
     auto obs = Observation();
     dump_pahting_grid(obs->GetGameInfo().pathing_grid, "map.txt");
+	MapSegmentation segmentation(m_sc2);
+	segmentation.segment();
 
     auto macro = std::make_unique<MacroManager>( m_sc2, MacroManager::BuildOrder({ sc2::ABILITY_ID::TRAIN_PROBE
                                                , sc2::ABILITY_ID::TRAIN_PROBE
@@ -63,5 +65,13 @@ void Kubot::OnUnitDestroyed(const Unit* unit)
     for (auto& listener : m_listeners)
     {
         listener->unitDestroyed(unit);
+    }
+}
+
+void Kubot::OnUnitIdle(const Unit* unit)
+{
+    for (auto& listener : m_listeners)
+    {
+        listener->unitIdle(unit);
     }
 }

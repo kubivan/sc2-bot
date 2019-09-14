@@ -27,6 +27,8 @@ public:
 
     void OnUnitDestroyed(const sc2::Unit*) override;
 
+    void OnUnitIdle(const sc2::Unit*) override;
+
     std::vector<std::unique_ptr<EventListener>> m_listeners;
     SC2 m_sc2;
 };
