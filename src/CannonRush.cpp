@@ -6,25 +6,10 @@
 #include <sstream>
 #include <numeric>
 #include <glm/glm.hpp>
+#include <utils/UnitQuery.h>
 
 constexpr float pylon_radius = 6.5f;
 constexpr float pylon_radius_squared = pylon_radius * pylon_radius;
-
-bool is_building(const sc2::Unit& u)
-{
-	return u.unit_type != sc2::UNIT_TYPEID::PROTOSS_ADEPT
-		&& u.unit_type != sc2::UNIT_TYPEID::PROTOSS_PROBE
-		&& u.unit_type != sc2::UNIT_TYPEID::PROTOSS_ZEALOT
-		&& u.unit_type != sc2::UNIT_TYPEID::PROTOSS_STALKER;
-}
-
-sc2::Units get_enemy_buildings(const SC2& sc2)
-{
-	return sc2.obs().GetUnits([](const sc2::Unit& u)
-		{
-			return is_building(u);
-		});
-}
 
 CannonRush::~CannonRush()
 {
@@ -62,11 +47,7 @@ void CannonRush::Rusher::step()
 	m_sc2.debug().DebugTextOut(str, sc2::Point3D(m_unit->pos.x, m_unit->pos.y, maxZ), sc2::Colors::Green, 20);
 	auto camera_pos = m_sc2.obs().GetCameraPos() + sc2::Point2D(cos(m_unit->facing), sin(m_unit->facing));
 
-	auto enemies_to_evade = m_sc2.obs().GetUnits([&,this](const sc2::Unit& u) {
-		return u.alliance == sc2::Unit::Enemy 
-			&& !is_building(u) 
-			&& sc2::DistanceSquared2D(this->m_unit->pos, u.pos) <= 6*6;
-		});
+	auto enemies_to_evade = m_sc2.obs().GetUnits(sc2::enemy && not(sc2::building) && in_radius(this->m_unit->pos, 6));
 	for (auto& enemy : enemies_to_evade)
 	{
 		auto heading = enemy->pos + sc2::Point3D{ cos(m_unit->facing), sin(m_unit->facing), 0};
@@ -84,9 +65,7 @@ void CannonRush::Rusher::step()
 		if (m_sc2.query().PathingDistance(m_unit->pos, evade_pos) <=0 )
 		{
 			std::cout << "Evading!! " << std::endl;
-			auto minerals_patch = m_sc2.obs().GetUnits([&, this](const sc2::Unit& u) {
-				return u.unit_type == sc2::UNIT_TYPEID::NEUTRAL_MINERALFIELD;
-				}).front();
+			auto minerals_patch = m_sc2.obs().GetUnits(type(sc2::UNIT_TYPEID::NEUTRAL_MINERALFIELD)).front();
 			auto rand = rand_point_around(m_unit->pos, 8.);
 			evade_pos = { rand.x, rand.y, 0 };
 			evade_pos = minerals_patch->pos;
@@ -94,12 +73,9 @@ void CannonRush::Rusher::step()
 		return m_sc2.act().UnitCommand(m_unit, sc2::ABILITY_ID::MOVE, evade_pos);
 	}
 
-
 	if (m_closest_targets.empty())
 	{
-		m_closest_targets = m_sc2.obs().GetUnits([&](const sc2::Unit& u) {
-			return u.alliance == sc2::Unit::Enemy && is_building(u);
-			});
+		m_closest_targets = m_sc2.obs().GetUnits(sc2::enemy && sc2::building);
 	}
 	switch (m_state)
 	{
@@ -153,10 +129,13 @@ void CannonRush::Rusher::rush()
 	}
 
 	m_target = m_closest_targets.back()->pos;
-	const auto near_pylons = m_sc2.obs().GetUnits([&](auto& u) {
-		return u.unit_type == sc2::UNIT_TYPEID::PROTOSS_PYLON
-			&& sc2::DistanceSquared2D(m_target, u.pos) < pylon_radius_squared;
-		});
+	//const auto near_pylons = m_sc2.obs().GetUnits([&](auto& u) {
+	//	return u.unit_type == sc2::UNIT_TYPEID::PROTOSS_PYLON
+	//		&& sc2::DistanceSquared2D(m_target, u.pos) < pylon_radius_squared;
+	//	});
+	const auto near_pylons = m_sc2.obs().GetUnits(
+		type(sc2::UNIT_TYPEID::PROTOSS_PYLON) && in_radius(m_target, pylon_radius));
+
 	if (near_pylons.size() < 2)
 	{
 		return m_sc2.act().UnitCommand(m_unit, sc2::ABILITY_ID::BUILD_PYLON, rand_point_near(m_target, 4.));
@@ -169,10 +148,8 @@ void CannonRush::Rusher::rush()
 		return m_sc2.act().UnitCommand(m_unit, sc2::ABILITY_ID::MOVE, rand_point_around(m_unit->pos, 4.), true);
 	}
 
-	const auto photons = m_sc2.obs().GetUnits([&](auto& u) {
-		return u.unit_type == sc2::UNIT_TYPEID::PROTOSS_PHOTONCANNON
-			&& sc2::DistanceSquared2D(m_target, u.pos) < pylon_radius_squared;
-		});
+	const auto photons = m_sc2.obs().GetUnits(
+		type(sc2::UNIT_TYPEID::PROTOSS_PHOTONCANNON) && in_radius(m_target, pylon_radius));
 	if (photons.empty())
 	{
 		build_near(m_sc2, m_unit, near_pylons.front()->pos, 4.f, sc2::ABILITY_ID::BUILD_PHOTONCANNON);

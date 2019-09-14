@@ -24,6 +24,8 @@ public:
 
     void unitDestroyed(const sc2::Unit* unit) override;
 
+    void unitIdle(const sc2::Unit* unit) override;
+
 private:
 	struct Builder
 	{
@@ -35,8 +37,8 @@ private:
     void checkProbes();
     void checkSupply();
 
-
     SC2& m_sc2;
     BuildOrder m_build_order; //BUILD_*; TRAIN_PROBE
     std::set<const sc2::Unit*> m_pylons;
+    std::set<const sc2::Unit*> m_builders;
 };
