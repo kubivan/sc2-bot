@@ -9,10 +9,14 @@ namespace sc2
 Filter alliance(Unit::Alliance alliance);
 
 extern Filter building;
-extern Filter self;
-extern Filter ally;
-extern Filter neutral;
-extern Filter enemy;
+
+Filter const self = alliance(Unit::Alliance::Self);
+
+Filter const ally = alliance(Unit::Alliance::Ally);
+
+Filter const neutral = alliance(Unit::Alliance::Neutral);
+
+Filter const enemy = alliance(Unit::Alliance::Enemy);
 
 Filter type(UNIT_TYPEID type);
 

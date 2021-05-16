@@ -9,34 +9,6 @@ namespace sc2
 
 Filter building = [](const Unit& u) {return is_building_type(u.unit_type); };
 
-Filter self = alliance(Unit::Alliance::Self);
-
-Filter ally = alliance(Unit::Alliance::Ally);
-
-Filter neutral = alliance(Unit::Alliance::Neutral);
-
-Filter enemy = alliance(Unit::Alliance::Enemy);
-
-//bool self(const Unit& u)
-//{
-//	return alliance(Unit::Alliance::Self)(u);
-//}
-//
-//bool ally(const Unit& u)
-//{
-//	return alliance(Unit::Alliance::Ally)(u);
-//}
-//
-//bool neutral(const Unit& u)
-//{
-//	return alliance(Unit::Alliance::Neutral)(u);
-//}
-
-//bool enemy(const Unit& u)
-//{
-//	return alliance(Unit::Alliance::Enemy)(u);
-//}
-
 sc2::Filter alliance(sc2::Unit::Alliance alliance)
 {
     return [alliance](const auto& u) { return u.alliance == alliance; };
