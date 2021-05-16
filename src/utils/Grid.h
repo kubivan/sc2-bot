@@ -53,7 +53,7 @@ public:
 
 private:
 	Rect2DI m_area;
-	std::vector<ValueType> m_grid;
+	std::vector<typename GridBase::ValueType> m_grid;
 };
 
 }
