@@ -4,56 +4,60 @@
 
 #include <functional>
 #include <vector>
+#include <deque>
 #include <type_traits>
 
 namespace sc2
 {
 
-template <class TValue, int BPP> 
+template <class TValue, int BPP>
 struct GridBase
 {
-	using ValueType = TValue;
-	static const int bpp = BPP;
+    using ValueType = TValue;
+    using Base = GridBase<ValueType, BPP>;
+    static const int bpp = BPP;
 
-	Rect2DI getArea() const
-	{
-		return m_area;
-	}
+    Rect2DI getArea() const
+    {
+        return m_area;
+    }
 protected:
-	GridBase(Rect2DI area)
-		: m_area(std::move(area))
-	{
-	}
+    GridBase(Rect2DI area)
+        : m_area(std::move(area))
+    {
+    }
 
-	Rect2DI m_area;
+    Rect2DI m_area;
 };
 
 template<class T>
 class Grid : public GridBase<T, 8>
 {
 public:
-	Grid(const Rect2DI& area)
-		: GridBase(area)
-		, m_area(area)
-		, m_grid(area.Width() * area.Height())
-	{
-	}
-	
-	const T& operator[](const Point2DI& point) const
-	{
-		const auto x = m_area.from.x + point.x;
-		const auto y = m_area.from.y + point.y;
-		return m_grid[y*m_area.Width() + x ];
-	}
+    Grid(const Rect2DI& area)
+        : GridBase(area)
+        , m_area(area)
+        , m_grid(area.Width() * area.Height())
+    {
+    }
 
-	T& operator[](const Point2DI& point)
-	{
-		return const_cast<T&>(static_cast<const Grid<T>&>(*this).operator [](point));
-	}
+    const auto&
+    operator[](const Point2DI& point) const
+    {
+        const auto x = m_area.from.x + point.x;
+        const auto y = m_area.from.y + point.y;
+        return m_grid[y * m_area.Width() + x];
+    }
+
+    auto&
+    operator[](const Point2DI& point)
+    {
+        return const_cast<T&>(static_cast<const Grid<T>&>(*this).operator [](point));
+    }
 
 private:
-	Rect2DI m_area;
-	std::vector<typename GridBase::ValueType> m_grid;
+    Rect2DI m_area;
+    std::deque<typename GridBase::ValueType> m_grid;
 };
 
 }

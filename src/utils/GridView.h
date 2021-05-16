@@ -9,13 +9,14 @@ namespace sc2
 class GridView : public GridBase<bool, 1>
 {
 public:
-	GridView(const ImageData& data);
+    GridView(const ImageData& data);
 
-	auto operator[](const Point2DI& point) const -> ValueType;
+    auto operator[](const Point2DI& point) const->ValueType;
+
+    auto data() const { return m_data.data(); };
 
 private:
-	const std::string& m_data;
+    const std::string& m_data;
 };
 
 }
-
