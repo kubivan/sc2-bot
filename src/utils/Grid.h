@@ -1,52 +1,37 @@
 #pragma once
 
 #include <sc2api/sc2_common.h>
+#include <sc2api/sc2_map_info.h>
 
 #include <functional>
 #include <vector>
 #include <deque>
 #include <type_traits>
 
-namespace sc2
+namespace sc2::utils
 {
-
-template <class TValue, int BPP>
-struct GridBase
-{
-    using ValueType = TValue;
-    using Base = GridBase<ValueType, BPP>;
-    static const int bpp = BPP;
-
-    Rect2DI getArea() const
-    {
-        return m_area;
-    }
-protected:
-    GridBase(Rect2DI area)
-        : m_area(std::move(area))
-    {
-    }
-
-    Rect2DI m_area;
-};
 
 template<class T>
-class Grid : public GridBase<T, 8>
+class Grid
 {
 public:
-    Grid(const Rect2DI& area)
-        : GridBase(area)
-        , m_area(area)
-        , m_grid(area.Width() * area.Height())
+    Grid(int width, int height)
+        : m_width(width)
+        , m_height(height)
+        , m_grid(width * height)
     {
+    }
+
+    Grid(const ImageData& data)
+        : Grid(data.width, data.height)
+    {
+
     }
 
     const auto&
     operator[](const Point2DI& point) const
     {
-        const auto x = m_area.from.x + point.x;
-        const auto y = m_area.from.y + point.y;
-        return m_grid[y * m_area.Width() + x];
+        return m_grid[point.y * m_width + point.x];
     }
 
     auto&
@@ -55,9 +40,13 @@ public:
         return const_cast<T&>(static_cast<const Grid<T>&>(*this).operator [](point));
     }
 
+    int getWidth() const { return m_width; };
+    int getHeight() const { return m_height; };
+
 private:
-    Rect2DI m_area;
-    std::deque<typename GridBase::ValueType> m_grid;
+    int m_width;
+    int m_height;
+    std::deque<T> m_grid;
 };
 
 }

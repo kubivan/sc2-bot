@@ -1,16 +1,20 @@
 #include "GridView.h"
 
-using namespace sc2;
+namespace sc2::utils
+{
 
 GridView::GridView(const ImageData& data)
-	: GridBase({ { 0, 0 }, { data.width, data.height } })
-	, m_data(data.data)
+    : m_width(data.width)
+    , m_height(data.height)
+    , m_data(data.data)
 {
-	assert(data.bits_per_pixel, bpp);
 }
 
-auto GridView::operator[](const Point2DI& point) const -> ValueType
+auto GridView::operator[](const Point2DI& point) const -> bool
 {
-	div_t idx = div(point.x + point.y * m_area.Width(), 8);
-	return (m_data[idx.quot] >> (7 - idx.rem)) & 1;
+    div_t idx = div(point.x + point.y * getWidth(), 8);
+    auto d = m_data[idx.quot] >> (7 - idx.rem);
+    return (m_data[idx.quot] >> (7 - idx.rem)) & 1;
+}
+
 }
