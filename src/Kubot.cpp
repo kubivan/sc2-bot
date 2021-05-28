@@ -8,7 +8,7 @@ using namespace sc2;
 
 Kubot::~Kubot() {}
 Kubot::Kubot()
-	: m_sc2(*this)
+    : m_sc2(*this)
 {
 }
 
@@ -17,10 +17,8 @@ Kubot::OnGameStart()
 {
     auto obs = Observation();
     dump_pahting_grid(obs->GetGameInfo().pathing_grid, "map.txt");
-	MapSegmentation segmentation(m_sc2);
-	segmentation.segment();
 
-    auto macro = std::make_unique<MacroManager>( m_sc2, MacroManager::BuildOrder({ sc2::ABILITY_ID::TRAIN_PROBE
+    auto macro = std::make_unique<MacroManager>(m_sc2, MacroManager::BuildOrder({ sc2::ABILITY_ID::TRAIN_PROBE
                                                , sc2::ABILITY_ID::TRAIN_PROBE
                                                , sc2::ABILITY_ID::BUILD_PYLON
                                                , sc2::ABILITY_ID::BUILD_FORGE }));
@@ -34,7 +32,7 @@ void Kubot::OnStep()
     {
         listener->step();
     }
-	m_sc2.debug().SendDebug();
+    m_sc2.debug().SendDebug();
 }
 
 

@@ -1,6 +1,5 @@
 #include "SC2.h"
 
-
 SC2::SC2(sc2::Agent& agent)
 	: m_obs(*agent.Observation())
 	, m_actions(*agent.Actions())

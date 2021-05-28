@@ -61,11 +61,10 @@ dump_pahting_grid(const sc2::ImageData& pathing_grid, const std::string& fname)
         }
         ofs << std::endl;
     }
-
-
 }
 
-Point2D enemy_base_location(const SC2& sc2)
+Point2D
+enemy_base_location(const SC2& sc2)
 {
     static Point2D res = [&sc2]() {
     const auto nexus = sc2.obs().GetUnits([](const Unit& unit) {
@@ -83,11 +82,11 @@ Point2D enemy_base_location(const SC2& sc2)
     }();
     return res;
 
-
     assert(false);
 }
 
-sc2::Point2D build_near(SC2& sc2
+sc2::Point2D
+build_near(SC2& sc2
     , const sc2::Unit* probe
     , const sc2::Point2D& center
     , float radius

@@ -1,13 +1,13 @@
 #pragma once
 #include <SC2.h>
 
-class MapSegmentation
+struct MapSegmentation
 {
 public:
-	MapSegmentation(SC2& sc2);
-	void segment();
+    MapSegmentation(SC2& sc2);
+    void segment();
 
-private:
+//private:
 	SC2 m_sc2;
 };
 
