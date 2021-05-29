@@ -19,7 +19,6 @@ class Grid
 {
 public:
 
-
     Grid(int width, int height, T value = {})
         : m_width(width)
         , m_height(height)
@@ -62,4 +61,3 @@ private:
 };
 
 }
-
