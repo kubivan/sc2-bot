@@ -2,7 +2,6 @@
 #include <Kubot.h>
 #include <MacroManager.h>
 #include <Utils.h>
-#include <MapSegmentation.h>
 
 using namespace sc2;
 

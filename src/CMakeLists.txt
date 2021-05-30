@@ -1,5 +1,4 @@
 
-
 set(KUBOT_SOURCES
     main.cpp
     Kubot.h
@@ -17,6 +16,8 @@ set(KUBOT_SOURCES
     utils/GridView.cpp
     utils/Grid.h
     utils/GridUtils.h
+    utils/Map.h
+    utils/Map.cpp
     utils/UnitQuery.h
     utils/UnitQuery.cpp
     utils/UnitTraits.h
@@ -33,7 +34,6 @@ target_include_directories(kubot PUBLIC
     ${CMAKE_BINARY_DIR}/external/s2client-api/generated
     )
 
-target_compile_features(kubot PUBLIC cxx_std_14)
 target_link_libraries(kubot
     sc2api sc2lib sc2utils sc2protocol
     )

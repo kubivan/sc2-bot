@@ -40,6 +40,27 @@ auto zip_with(const TA& a
     return res;
 }
 
+template<class TA, class TB, class TFunc>
+auto unite(const TA& a
+    , const TB& b
+    , TFunc pred)
+{
+    std::vector<Point2DI> res;
+    for (int y = 0; y < a.getHeight(); ++y)
+    {
+        for (int x = 0; x < a.getWidth(); ++x)
+        {
+            const auto pixel = sc2::Point2DI(x, y);
+            if (pred(a[pixel], b[pixel]))
+            {
+                res.push_back(pixel);
+            }
+        }
+
+    }
+    return res;
+}
+
 template<class T, class TA, class TB>
     Grid<T> mark_with(const TA& a
     , const TB& b
@@ -55,6 +76,21 @@ template<class T, class TA, class TB>
         }
     }
     return res;
+}
+
+template<typename TGrid>
+void
+dump_grid(const TGrid& grid, const std::string& file_name)
+{
+    std::ofstream ofs{file_name};
+    for (int y = grid.getHeight() - 1; y >= 0; --y)
+    {
+        for (int x = 0; x < grid.getWidth(); ++x)
+        {
+            ofs<<grid[{ x, y }];
+        }
+        ofs << std::endl;
+    }
 }
 
 template<class T, class FootPrint>
