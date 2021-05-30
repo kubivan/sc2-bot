@@ -2,6 +2,8 @@
 #include <Kubot.h>
 #include <MacroManager.h>
 #include <Utils.h>
+#include <utils/Map.h>
+#include <utils/UnitTraits.h>
 
 using namespace sc2;
 
@@ -17,15 +19,20 @@ Kubot::OnGameStart()
     auto obs = Observation();
     dump_pahting_grid(obs->GetGameInfo().pathing_grid, "map.txt");
 
-    auto macro = std::make_unique<MacroManager>(m_sc2, MacroManager::BuildOrder({ sc2::ABILITY_ID::TRAIN_PROBE
+    m_map = std::make_unique<sc2::utils::Map>(sc2::utils::Map(m_sc2));
+
+    auto tech_tree = sc2::utils::make_tech_tree(*obs);
+    auto macro = std::make_unique<MacroManager>( m_sc2, *m_map, tech_tree, MacroManager::BuildOrder({ sc2::ABILITY_ID::TRAIN_PROBE
                                                , sc2::ABILITY_ID::TRAIN_PROBE
                                                , sc2::ABILITY_ID::BUILD_PYLON
-                                               , sc2::ABILITY_ID::BUILD_FORGE }));
+                                               , sc2::ABILITY_ID::BUILD_FORGE
+                                               , sc2::ABILITY_ID::BUILD_ASSIMILATOR}));
     m_listeners.push_back(std::move(macro));
     m_listeners.push_back(std::make_unique<CannonRush>(m_sc2));
 }
 
-void Kubot::OnStep()
+void
+Kubot::OnStep()
 {
     for (auto& listener : m_listeners)
     {
@@ -34,8 +41,8 @@ void Kubot::OnStep()
     m_sc2.debug().SendDebug();
 }
 
-
-void Kubot::OnUnitCreated(const Unit* unit)
+void
+Kubot::OnUnitCreated(const Unit* unit)
 {
     static int count = 0; // HACK: skip redundant callbacks for precreated units
     if (count < 12)
@@ -49,7 +56,8 @@ void Kubot::OnUnitCreated(const Unit* unit)
         listener->unitCreated(unit);
     }
 }
-void Kubot::OnBuildingConstructionComplete(const Unit* unit)
+void
+Kubot::OnBuildingConstructionComplete(const Unit* unit)
 {
     for (auto& listener : m_listeners)
     {
@@ -57,7 +65,8 @@ void Kubot::OnBuildingConstructionComplete(const Unit* unit)
     }
 }
 
-void Kubot::OnUnitDestroyed(const Unit* unit)
+void
+Kubot::OnUnitDestroyed(const Unit* unit)
 {
     for (auto& listener : m_listeners)
     {
@@ -65,7 +74,8 @@ void Kubot::OnUnitDestroyed(const Unit* unit)
     }
 }
 
-void Kubot::OnUnitIdle(const Unit* unit)
+void
+Kubot::OnUnitIdle(const Unit* unit)
 {
     for (auto& listener : m_listeners)
     {

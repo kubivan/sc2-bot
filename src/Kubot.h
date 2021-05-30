@@ -6,10 +6,17 @@
 #include <SC2.h>
 #include <EventListener.h>
 
+#include <utils/GridUtils.h>
+
 #include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <set>
+
+namespace sc2::utils
+{
+class Map;
+}
 
 class Kubot : public sc2::Agent
 {
@@ -31,4 +38,5 @@ public:
 
     std::vector<std::unique_ptr<EventListener>> m_listeners;
     SC2 m_sc2;
+    std::unique_ptr<sc2::utils::Map> m_map;
 };

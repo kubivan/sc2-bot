@@ -4,7 +4,9 @@
 
 #include <Utils.h>
 #include <iostream>
+#include <string>
 #include <utils/UnitQuery.h>
+#include <utils/Map.h>
 
 namespace
 {
@@ -19,15 +21,19 @@ bool isHarvester(const sc2::Unit& u)
 
 MacroManager::~MacroManager() = default;
 
-MacroManager::MacroManager(SC2& sc2, BuildOrder build_order)
+MacroManager::MacroManager(SC2& sc2, sc2::utils::Map& map, sc2::utils::TechTree tech_tree, BuildOrder build_order)
     : m_sc2(sc2)
     , m_build_order(std::move(build_order))
+    , m_tech_tree(std::move(tech_tree))
+    , m_map(map)
 {
 }
 
 void
 MacroManager::step()
 {
+    debugOutput();
+
     if (!m_build_order.empty())
     {
         executeBuildOrder();
@@ -41,6 +47,8 @@ MacroManager::step()
 void
 MacroManager::unitCreated(const sc2::Unit* unit)
 {
+    m_map.place_building(*unit);
+
     if (!m_build_order.empty())
     {
         //TODO: check correspondance between unit->unit_type and m_buildorder.front()
@@ -165,18 +173,41 @@ MacroManager::checkSupply()
 
 }
 
+void
+MacroManager::debugOutput()
+{
+    const auto units = m_sc2.obs().GetUnits();
+    const auto maxz_unit = *std::max_element(units.begin(), units.end()
+        , [](const auto& u1, const auto& u2) { return u1->pos.z < u2->pos.z; });
+    const auto max_z = maxz_unit->pos.z;
+
+
+    for (auto& u : units)
+    {
+        if (u->unit_type == sc2::UNIT_TYPEID::PROTOSS_PROBE)
+        {
+            continue;
+        }
+        auto pos = u->pos;
+        //auto tile_width = std::max(u->radius, (float)m_tech_tree[u->unit_type].tile_width / 2);
+        auto tile_width = u->radius;
+        m_sc2.debug().DebugBoxOut( 
+            sc2::Point3D(u->pos.x - tile_width, u->pos.y - tile_width, max_z + 2.0f)
+            , sc2::Point3D(u->pos.x + tile_width, u->pos.y + tile_width, max_z - 5.0f)
+            , sc2::Colors::Green);
+        auto str = "(" + std::to_string(pos.x) + "," + std::to_string(pos.y) + ")\n";
+        m_sc2.debug().DebugTextOut(str, sc2::Point3D(pos.x, pos.y, max_z), sc2::Colors::Green, 20);
+    }
+
+}
+
 bool
 MacroManager::canAfford(BuildOrder::value_type item)
 {
-    //TODO: get buildings cost via sc2api
     const auto minerals = m_sc2.obs().GetMinerals();
-    switch (item)
-    {
-    case sc2::ABILITY_ID::TRAIN_PROBE:
-        return minerals >= 50;
-    case sc2::ABILITY_ID::BUILD_PYLON:
-        return minerals >= 100;
-    case sc2::ABILITY_ID::BUILD_FORGE:
-        return minerals >= 150;
-    }
+    auto building = std::find_if(
+        m_tech_tree.begin()
+        , m_tech_tree.end()
+        , [item](const auto& kv) { return kv.second.build_ability == item; });
+    return minerals >= building->second.mineral_cost;
 }
