@@ -26,7 +26,7 @@ constexpr auto type(sc2::UNIT_TYPEID type)
     return [type](const auto& u) constexpr { return u.unit_type == type; };
 }
 
-constexpr auto building = [](const Unit& u) constexpr {return is_building_type(u.unit_type); };
+constexpr auto building = [](const Unit& u) constexpr {return sc2::utils::is_building_type(u.unit_type); };
 
 //buiild_progress Range: [0.0, 1.0]. 1.0 == finished.
 constexpr auto built = [](const auto& u) constexpr { return u.build_progress == 1.f; };

@@ -2,38 +2,12 @@
 
 #include <sc2api/sc2_interfaces.h>
 
-bool sc2::is_building_type(sc2::UNIT_TYPEID type)
+namespace sc2::utils
 {
-    switch (type)
-    {
-    // Protoss
-    case UNIT_TYPEID::PROTOSS_ASSIMILATOR:
-    case UNIT_TYPEID::PROTOSS_ASSIMILATORRICH:
-    case UNIT_TYPEID::PROTOSS_CYBERNETICSCORE:
-    case UNIT_TYPEID::PROTOSS_DARKSHRINE:
-    case UNIT_TYPEID::PROTOSS_FLEETBEACON:
-    case UNIT_TYPEID::PROTOSS_FORGE:
-    case UNIT_TYPEID::PROTOSS_GATEWAY:
-    case UNIT_TYPEID::PROTOSS_NEXUS:
-    case UNIT_TYPEID::PROTOSS_PHOTONCANNON:
-    case UNIT_TYPEID::PROTOSS_PYLON:
-    case UNIT_TYPEID::PROTOSS_PYLONOVERCHARGED:
-    case UNIT_TYPEID::PROTOSS_ROBOTICSBAY:
-    case UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY:
-    case UNIT_TYPEID::PROTOSS_SHIELDBATTERY:
-    case UNIT_TYPEID::PROTOSS_STARGATE:
-    case UNIT_TYPEID::PROTOSS_TEMPLARARCHIVE:
-    case UNIT_TYPEID::PROTOSS_TWILIGHTCOUNCIL:
-    case UNIT_TYPEID::PROTOSS_WARPGATE:
-        return true;
-    }
-    return false;
-}
 
-sc2::TechTree sc2::make_tech_tree(const sc2::ObservationInterface& obs)
+TechTree make_tech_tree(const sc2::ObservationInterface& obs)
 {
     TechTree res;
-    // Protoss Buildings                                                                                  unit  bld   wrk    rfn    sup    hall   add
     //res[sc2::UNIT_TYPEID::PROTOSS_PYLONOVERCHARGED] = { sc2::Race::Protoss, 0, 0, 0, 0, sc2::ABILITY_ID::EFFECT_PHOTONOVERCHARGE, 0, { sc2::UNIT_TYPEID::PROTOSS_MOTHERSHIPCORE, sc2::UNIT_TYPEID::PROTOSS_PYLON }, {}, {} };
     res[sc2::UNIT_TYPEID::PROTOSS_PYLON] = { sc2::Race::Protoss, 0, 0, 0, 0, sc2::ABILITY_ID::BUILD_PYLON, 0, {}, {} };
     res[sc2::UNIT_TYPEID::PROTOSS_NEXUS] = { sc2::Race::Protoss, 0, 0, 0, 0, sc2::ABILITY_ID::BUILD_NEXUS, 0, {}, {} };
@@ -71,5 +45,43 @@ sc2::TechTree sc2::make_tech_tree(const sc2::ObservationInterface& obs)
     }
 
     return res;
+}
+
+Footprint
+get_footprint(const UNIT_TYPEID type)
+{
+    static const std::unordered_map<UNIT_TYPEID, Footprint> footprints = {
+         {UNIT_TYPEID::PROTOSS_PYLON, make_footprint<2,2>("##"
+                                                          "c#")}
+        ,{UNIT_TYPEID::PROTOSS_FORGE, make_footprint<3, 3>("###"
+                                                           "#c#"
+                                                           "###")}
+    };
+    switch (type)
+    {
+    case UNIT_TYPEID::PROTOSS_PYLON:
+        return make_footprint<2,2>("##"
+                                  "c#");
+    case UNIT_TYPEID::PROTOSS_FORGE:
+        return make_footprint<3, 3>("###"
+                                    "#c#"
+                                    "###");
+    case UNIT_TYPEID::NEUTRAL_MINERALFIELD:
+    case UNIT_TYPEID::NEUTRAL_MINERALFIELD750:
+        return make_footprint<2,1>("#c");
+    case UNIT_TYPEID::NEUTRAL_VESPENEGEYSER:
+    case UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER:
+        return make_footprint<3,3>("###"
+                                   "#c#"
+                                   "###");
+    case UNIT_TYPEID::PROTOSS_NEXUS:
+        return make_footprint<5,5>(" ### "
+                                   "#####"
+                                   "##c##"
+                                   "#####"
+                                   " ### ");
+    }
+}
+
 }
 

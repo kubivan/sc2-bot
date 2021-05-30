@@ -1,7 +1,12 @@
+#pragma once
+
 #include "Grid.h"
 
 #include "GridView.h"
+#include "UnitTraits.h"
 #include <functional>
+#include <array>
+#include <fstream>
 
 namespace sc2::utils
 {
@@ -50,6 +55,32 @@ template<class T, class TA, class TB>
         }
     }
     return res;
+}
+
+template<class T, class FootPrint>
+void
+apply_footprint(Grid<T>& g, const Point2DI& center, const FootPrint& footprint, T value)
+{
+    for (int i = 0; i < footprint.size; ++i)
+    {
+        const auto& delta = footprint.data[i];
+        const auto pos = Point2DI{ center.x + delta.x, center.y + delta.y };
+        g[pos] = value;
+    }
+}
+
+template <class T>
+void
+place_building(Grid<T>& g, const sc2::Unit& u, T value)
+{
+    if (!is_building_type(u.unit_type))
+    {
+        return;
+    }
+    const auto center = get_tile_pos(u.pos);
+
+    auto footprint = sc2::utils::get_footprint(u.unit_type);
+    apply_footprint(g, center, footprint, value);
 }
 
 }
