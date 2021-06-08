@@ -45,10 +45,10 @@ void
 Kubot::OnUnitCreated(const Unit* unit)
 {
     static int count = 0; // HACK: skip redundant callbacks for precreated units
-    if (count < 12)
+    if (count < 13)
     {
         count++;
-        return;;
+        return;
     }
 
     for (auto& listener : m_listeners)
