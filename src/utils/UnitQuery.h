@@ -44,15 +44,21 @@ constexpr auto in_radius(const Point2D& center, int radius)
     };
 }
 
-template<typename Pred1, typename Pred2>
+template<typename Pred1, typename Pred2,
+     typename std::enable_if< std::is_invocable_v<Pred1, const sc2::Unit&>
+            && std::is_invocable_v<Pred2, const sc2::Unit&>
+    ,bool>::type = true>
 constexpr auto operator&&(Pred1 a, Pred2 b)
 {
-    return [a, b](const Unit& u) constexpr {
+    return [a, b](const sc2::Unit& u) constexpr {
         return a(u) && b(u);
     };
 }
 
-template<typename Pred1, typename Pred2>
+template<typename Pred1, typename Pred2,
+     typename std::enable_if< std::is_invocable_v<Pred1, const sc2::Unit&>
+            && std::is_invocable_v<Pred2, const sc2::Unit&>
+    ,bool>::type = true>
 constexpr auto operator||(Pred1 a, Pred2 b)
 {
     return [a, b](const Unit& u) constexpr {
@@ -60,18 +66,14 @@ constexpr auto operator||(Pred1 a, Pred2 b)
     };
 }
 
-template <typename Pred>
+template<typename Pred,
+     typename std::enable_if< std::is_invocable_v<Pred, const sc2::Unit&>
+    ,bool>::type = true>
 constexpr auto not(Pred p)
 {
     return [p](const Unit& u) constexpr {
         return !p(u);
     };
-}
-
-template<typename Pred>
-constexpr auto operator!(Pred p)
-{
-    return not(p);
 }
 
 const Unit* closest(const sc2::Unit* unit, std::vector<const sc2::Unit*> objects);
