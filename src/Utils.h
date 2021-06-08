@@ -17,6 +17,12 @@ sc2::Point2D
 rand_point_around(const sc2::Point2D& center
     , float radius, float divisor = 1.f);
 
+sc2::Point2D
+find_buildpos_near(SC2& sc2
+    , const sc2::Point2D& center
+    , float radius
+    , sc2::ABILITY_ID building);
+
 sc2::Point2D build_near(SC2& api
     , const sc2::Unit* probe
     , const sc2::Point2D& center
