@@ -5,6 +5,7 @@
 #include <utils/UnitQuery.h>
 
 #include <functional>
+#include <variant>
 
 enum class PlacementHint
 {
@@ -26,11 +27,12 @@ public:
         PrereqCheck check;
     };
 
-    BuildOrder& add( sc2::UNIT_TYPEID build_command
-                   , PlacementHint hint = PlacementHint::Default
-                   , PrereqCheck check = {})
+
+    BuildOrder& add(sc2::UNIT_TYPEID build_command
+        , PlacementHint hint = PlacementHint::Default
+        , PrereqCheck check = {})
     {
-        m_commands.push_back({build_command, hint, check});
+        m_commands.push_back(BuildCommand{ build_command, hint, check });
         return *this;
     }
 
@@ -49,19 +51,19 @@ private:
 
 BuildOrder make_4gate(const sc2::ObservationInterface& obs)
 {
-    auto pylon_built = [](const sc2::ObservationInterface& obs) -> bool  {
+    auto pylon_built = [](const sc2::ObservationInterface& obs) -> bool {
         //TODO: implement has units
         const auto has_pylon = sc2::type(sc2::UNIT_TYPEID::PROTOSS_PYLON) && sc2::built;
         return !obs.GetUnits(sc2::Unit::Self, has_pylon).empty();
     };
 
-    auto gate_built = [](const sc2::ObservationInterface& obs) -> bool  {
+    auto gate_built = [](const sc2::ObservationInterface& obs) -> bool {
         //TODO: implement has units
         const auto has_gate = sc2::type(sc2::UNIT_TYPEID::PROTOSS_GATEWAY) && sc2::built;
         return !obs.GetUnits(sc2::Unit::Self, has_gate).empty();
     };
 
-    auto assimilator_built = [](const sc2::ObservationInterface& obs) -> bool  {
+    auto assimilator_built = [](const sc2::ObservationInterface& obs) -> bool {
         //TODO: implement has units
         const auto done = sc2::type(sc2::UNIT_TYPEID::PROTOSS_ASSIMILATOR) && sc2::built;
         return !obs.GetUnits(sc2::Unit::Self, done).empty();
@@ -78,6 +80,8 @@ BuildOrder make_4gate(const sc2::ObservationInterface& obs)
     return order;
 }
 
+using OrderTarget = std::variant<sc2::Point2D, const sc2::Unit*>;
+
 class BuildOrderExecutor : public EventListener
 {
 public:
@@ -91,6 +95,77 @@ public:
 
     }
 
+    //TODO: extract
+    OrderTarget findTarget(sc2::ABILITY_ID command)
+    {
+        if (command == sc2::ABILITY_ID::BUILD_ASSIMILATOR)
+        {
+            const auto location = sc2::utils::wave(m_map.m_topology
+                , sc2::utils::get_tile_pos(m_sc2.obs().GetStartLocation())
+                , [&](const sc2::Point2DI& p)
+                {
+                    return m_map.m_topology[p] == '$' && m_sc2.query().Placement(command, { (float)p.x, (float)p.y });
+                });
+            if (!location)
+            {
+                throw std::logic_error("CANNOT FIND VESPENE GEYSER!!!");
+            }
+
+            const auto geyser = m_sc2.obs().GetUnits(sc2::type(sc2::UNIT_TYPEID::NEUTRAL_VESPENEGEYSER)
+                && sc2::in_radius({ float(location->x), float(location->y) }, 3)).front();
+
+            return geyser;
+        }
+        else if (command == sc2::ABILITY_ID::BUILD_PYLON)
+        {
+            return find_buildpos_near(m_sc2, m_sc2.obs().GetStartLocation(), 10.f, command);
+        }
+        else
+        {
+            auto builder = m_sc2.obs().GetUnits(sc2::Unit::Self, sc2::Filter(sc2::harvester) || sc2::Filter(sc2::idle)).front();
+            auto pylon = closest(builder, m_sc2.obs().GetUnits(
+                sc2::Unit::Self, type(sc2::UNIT_TYPEID::PROTOSS_PYLON)));
+            return find_buildpos_near(m_sc2, pylon->pos, 5.f, command);
+        }
+    }
+
+    void schedule(const BuildOrder::BuildCommand& order)
+    {
+        const auto& building_traits = m_tech_tree[order.building_type];
+        const auto command = building_traits.build_ability;
+        const auto target = findTarget(command);
+
+        const auto target_pos = std::visit([](auto&& t) {
+            //TODO: revise
+            using T = std::decay_t<decltype(t)>;
+            if constexpr (std::is_same_v<T, sc2::Point2D>)
+                return t;
+            else if constexpr (std::is_same_v<T, const sc2::Unit*>)
+                return sc2::Point2D(t->pos.x, t->pos.y);
+            }, target);
+
+        const auto mineral_harvester = not(sc2::target(m_sc2.obs(), sc2::UNIT_TYPEID::PROTOSS_ASSIMILATOR)) && sc2::Filter(sc2::harvester);
+        const auto builder = sc2::closest(target_pos, m_sc2.obs().GetUnits(sc2::Unit::Self, mineral_harvester));
+
+        std::visit([&](auto&& arg) {
+            //workaround: unit stuck into unbuilt assimilator
+            if (command == sc2::ABILITY_ID::BUILD_ASSIMILATOR)
+            {
+                m_sc2.act().UnitCommand(builder, command, arg, true);
+                m_sc2.act().UnitCommand(builder, sc2::ABILITY_ID::MOVE, m_sc2.obs().GetStartLocation(), true);
+                return;
+            }
+            m_sc2.act().UnitCommand(builder, command, arg);
+
+            }, target);
+
+        m_active_orders.push_back(ActiveCommand{ target_pos, order.building_type, builder->tag });
+        m_order.orders().pop_front();
+
+        m_gas_reserve += building_traits.gas_cost;
+        m_minerals_reserve += building_traits.mineral_cost;
+    }
+
     void step() override
     {
         checkProbes();
@@ -99,61 +174,19 @@ public:
             return;
 
         auto top_order = m_order.orders().front();
-        const auto& building_traits = m_tech_tree[top_order.building_type];
-        const auto build_ability = building_traits.build_ability;
 
         if (top_order.check && !top_order.check(m_sc2.obs()))
         {
             return;
         }
 
-        if (!sc2::utils::can_afford(top_order.building_type, m_tech_tree, m_sc2.obs()))
+        if (!canAfford(top_order.building_type))
         {
             return;
         }
 
-        if (build_ability == sc2::ABILITY_ID::BUILD_ASSIMILATOR)
-        {
-            const auto location = sc2::utils::wave(m_map.m_topology
-                , sc2::utils::get_tile_pos(m_sc2.obs().GetStartLocation())
-                , [&](const sc2::Point2DI& p)
-                {
-                    return m_map.m_topology[p] == '$' && m_sc2.query().Placement(build_ability, { (float)p.x, (float)p.y });
-                });
-            if (!location)
-            {
-                std::cout << "CANNOT FIND ASSIMILATOR!!!" << std::endl;
-                return;
-            }
 
-            const auto geyser = m_sc2.obs().GetUnits(sc2::type(sc2::UNIT_TYPEID::NEUTRAL_VESPENEGEYSER) 
-                && sc2::in_radius({float(location->x), float(location->y)}, 3) ).front();
-
-            auto builder = sc2::closest(geyser, m_sc2.obs().GetUnits(sc2::Unit::Self, sc2::Filter(sc2::harvester) || sc2::Filter(sc2::idle)));
-            m_sc2.act().UnitCommand(builder, sc2::ABILITY_ID::BUILD_ASSIMILATOR, geyser, true);
-            //workaround: unit stuck into unbuilt assimilator
-            m_sc2.act().UnitCommand(builder, sc2::ABILITY_ID::MOVE, m_sc2.obs().GetStartLocation(), true);
-
-            m_active_orders.push_back({ geyser->pos, top_order.building_type, builder->tag});
-        }
-        else if (build_ability == sc2::ABILITY_ID::BUILD_PYLON)
-        {
-            auto pos = rand_point_around(m_sc2.obs().GetStartLocation(), 10.f);
-            auto builder = sc2::closest(pos, m_sc2.obs().GetUnits(sc2::Unit::Self, sc2::Filter(sc2::harvester) || sc2::Filter(sc2::idle)));
-            m_sc2.act().UnitCommand(builder, sc2::ABILITY_ID::BUILD_PYLON, pos);
-            m_active_orders.push_back({ pos, sc2::UNIT_TYPEID::PROTOSS_PYLON, builder->tag});
-        }
-        else
-        {
-            auto builder = m_sc2.obs().GetUnits(sc2::Unit::Self, sc2::Filter(sc2::harvester) || sc2::Filter(sc2::idle)).front();
-            auto pylon = closest(builder, m_sc2.obs().GetUnits(
-                sc2::Unit::Self, type(sc2::UNIT_TYPEID::PROTOSS_PYLON)));
-            auto target_pos = build_near(m_sc2, builder, pylon->pos, 5.f, build_ability);
-            m_active_orders.push_back({ target_pos, top_order.building_type, builder->tag});
-        }
-        m_order.orders().pop_front();
-        m_gas_reserve += building_traits.gas_cost;
-        m_minerals_reserve += building_traits.mineral_cost;
+        schedule(top_order);
     }
 
     void unitCreated(const sc2::Unit* unit) override
@@ -172,7 +205,19 @@ public:
 
     void buildingConstructionComplete(const sc2::Unit* unit) override
     {
-
+        switch (unit->unit_type.ToType())
+        {
+        case sc2::UNIT_TYPEID::PROTOSS_ASSIMILATOR:
+        case sc2::UNIT_TYPEID::PROTOSS_ASSIMILATORRICH:
+        {
+            auto harvesters = m_sc2.obs().GetUnits(sc2::harvester && not(target(m_sc2.obs(), sc2::UNIT_TYPEID::PROTOSS_ASSIMILATOR)));
+            for (int i = 0; i < std::min(3, (int)harvesters.size()); ++i)
+            {
+                m_sc2.act().UnitCommand(harvesters[i], sc2::ABILITY_ID::HARVEST_GATHER, unit);
+            }
+        }
+        break;
+        }
     }
 
     void unitDestroyed(const sc2::Unit* unit) override
