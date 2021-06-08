@@ -5,19 +5,9 @@
 #include <Utils.h>
 #include <iostream>
 #include <string>
+#include <fstream>
 #include <utils/UnitQuery.h>
 #include <utils/Map.h>
-
-namespace
-{
-bool isHarvester(const sc2::Unit& u)
-{
-    return !u.orders.empty() && (u.orders.front().ability_id == sc2::ABILITY_ID::HARVEST_GATHER
-        || (u.orders.front().ability_id == sc2::ABILITY_ID::HARVEST_RETURN)
-        );
-}
-
-}
 
 MacroManager::~MacroManager() = default;
 
@@ -41,74 +31,136 @@ MacroManager::step()
     }
     checkProbes();
     checkSupply();
-
 }
 
 void
 MacroManager::unitCreated(const sc2::Unit* unit)
 {
+    auto& data = m_tech_tree[unit->unit_type];
     m_map.place_building(*unit);
 
-    if (!m_build_order.empty())
+    //if (!m_build_order.empty())
+    if (!m_build_order.empty() && m_build_order.front() == data.build_ability )
     {
-        //TODO: check correspondance between unit->unit_type and m_buildorder.front()
+        if (m_current_order)
+            m_current_order.reset();
         m_build_order.pop();
     }
+
+
+
 }
 
 void
 MacroManager::buildingConstructionComplete(const sc2::Unit* unit)
 {
-    if (unit->unit_type == sc2::UNIT_TYPEID::PROTOSS_PYLON)
+    switch (unit->unit_type.ToType())
     {
+    case sc2::UNIT_TYPEID::PROTOSS_PYLON:
         m_pylons.insert(unit);
+    break;
+    case sc2::UNIT_TYPEID::PROTOSS_ASSIMILATOR:
+    case sc2::UNIT_TYPEID::PROTOSS_ASSIMILATORRICH:
+    {
+
+        using namespace sc2;
+
+        auto harvesters = m_sc2.obs().GetUnits(harvester && not(target(m_sc2.obs(), sc2::UNIT_TYPEID::PROTOSS_ASSIMILATOR)));
+        for (int i = 0; i < std::min(3, (int)harvesters.size()); ++i)
+        {
+            m_sc2.act().UnitCommand(harvesters[i], sc2::ABILITY_ID::HARVEST_GATHER, unit);
+        }
+    }
+    break;
+
     }
 }
 
 void
 MacroManager::unitDestroyed(const sc2::Unit* unit)
 {
+    if (m_current_order && m_current_order->unit->tag == unit->tag)
+    {
+        m_current_order.reset();
+        return;
+    }
     m_pylons.erase(unit);
 }
 
 void
 MacroManager::unitIdle(const sc2::Unit* unit)
 {
-    if (m_builders.count(unit))
+    if (unit->unit_type == sc2::UNIT_TYPEID::PROTOSS_PROBE && m_builders.count(unit->tag))
     {
         auto minerals = m_sc2.obs().GetUnits(type(sc2::UNIT_TYPEID::NEUTRAL_MINERALFIELD)
             || type(sc2::UNIT_TYPEID::NEUTRAL_MINERALFIELD750));
 
-        std::cout << "gazering! " << std::endl;
         m_sc2.act().UnitCommand(unit, sc2::ABILITY_ID::HARVEST_GATHER, closest(unit, minerals));
-        m_builders.erase(unit);
+        m_builders.erase(unit->tag);
     }
+}
+
+constexpr auto has_order(sc2::ABILITY_ID order)
+{
+    return [order](const auto& u) constexpr -> bool
+    {
+        return std::find_if(u.orders.begin(), u.orders.end()
+            , [order](auto o) constexpr { return o.ability_id == order; })
+            != u.orders.end();
+    };
 }
 
 void
 MacroManager::executeBuildOrder()
 {
+    if (m_current_order)
+    {
+        auto executors =
+            m_sc2.obs().GetUnits(sc2::Unit::Self, has_order(m_current_order->command));
+        if (!executors.empty() )
+        {
+            return;
+        }
+        m_current_order.reset();
+    }
+
     const auto order = m_build_order.front();
     if (!canAfford(order))
     {
         return;
     }
     auto nexus = m_sc2.obs().GetUnits(type(sc2::UNIT_TYPEID::PROTOSS_NEXUS)).front();
-    if (order == sc2::ABILITY_ID::TRAIN_PROBE && nexus->orders.empty())
+    if (order == sc2::ABILITY_ID::TRAIN_PROBE)
     {
-        m_sc2.act().UnitCommand(nexus, sc2::ABILITY_ID::TRAIN_PROBE);
+        if (nexus->orders.empty())
+            m_sc2.act().UnitCommand(nexus, sc2::ABILITY_ID::TRAIN_PROBE);
         return;
     }
 
-    // buildings
-    if (!m_sc2.obs().GetUnits([order](const sc2::Unit& u)
-        {
-            auto& orders = u.orders;
-            return std::find_if(orders.cbegin(), orders.cend(), [order](const auto o) {
-                return o.ability_id == order; }) != orders.cend();
-        }).empty())
+    if (order == sc2::ABILITY_ID::BUILD_ASSIMILATOR)
     {
-        //orders already assigned
+        auto probes = m_sc2.obs().GetUnits(sc2::harvester);
+        auto builder = probes.front();
+
+        const auto location = sc2::utils::wave(m_map.m_topology
+            , sc2::utils::get_tile_pos(m_sc2.obs().GetStartLocation())
+            , [&](const sc2::Point2DI& p)
+            {
+                return m_map.m_topology[p] == '$' && m_sc2.query().Placement(order, { (float)p.x, (float)p.y });
+            });
+        if (!location)
+        {
+            std::cout << "CANNOT FIND ASSIMILATOR!!!" << std::endl;
+            return;
+        }
+
+        const auto geyser = m_sc2.obs().GetUnits(sc2::type(sc2::UNIT_TYPEID::NEUTRAL_VESPENEGEYSER) 
+            && sc2::in_radius({float(location->x), float(location->y)}, 3) ).front();
+
+        m_builders.insert(builder->tag);
+        m_sc2.act().UnitCommand(builder, sc2::ABILITY_ID::BUILD_ASSIMILATOR, geyser, true);
+        m_sc2.act().UnitCommand(builder, sc2::ABILITY_ID::MOVE, nexus->pos, true);
+        m_current_order = Order{builder, order};
         return;
     }
 
@@ -118,18 +170,21 @@ MacroManager::executeBuildOrder()
         return;
     }
 
-    auto probes = m_sc2.obs().GetUnits(isHarvester);
+    auto probes = m_sc2.obs().GetUnits(sc2::harvester);
     auto builder = probes.front();
-    auto order_bak = builder->orders.front();
     if (is_pylon)
     {
-        auto pos = rand_point_around(nexus->pos, 6.f);
+        auto pos = rand_point_around(nexus->pos, 10.f);
         m_sc2.act().UnitCommand(builder, sc2::ABILITY_ID::BUILD_PYLON, pos);
-        m_builders.insert(builder);
-        return;
+        m_builders.insert(builder->tag);
+        m_current_order = Order{builder, order};
     }
-    build_near(m_sc2, builder, (*m_pylons.cbegin())->pos, 5.f, order);
-    m_builders.insert(builder);
+    else
+    {
+        build_near(m_sc2, builder, (*m_pylons.cbegin())->pos, 5.f, order);
+        m_builders.insert(builder->tag);
+        m_current_order = Order{builder, order};
+    }
 }
 
 void
@@ -181,22 +236,28 @@ MacroManager::debugOutput()
         , [](const auto& u1, const auto& u2) { return u1->pos.z < u2->pos.z; });
     const auto max_z = maxz_unit->pos.z;
 
-
     for (auto& u : units)
     {
-        if (u->unit_type == sc2::UNIT_TYPEID::PROTOSS_PROBE)
+        const auto pos = u->pos;
+        //if (u->unit_type == sc2::UNIT_TYPEID::PROTOSS_PROBE)
         {
+            auto str = std::string{ "(" } + std::to_string(u->tag) + ")\n";
+            //for (auto& o : u->orders)
+            //{
+            //    str += std::to_string(o.ability_id) + ',';
+            //}
+            //str += ")\n";
+            m_sc2.debug().DebugTextOut(str, sc2::Point3D(pos.x, pos.y, max_z), sc2::Colors::Green, 15);
             continue;
         }
-        auto pos = u->pos;
-        //auto tile_width = std::max(u->radius, (float)m_tech_tree[u->unit_type].tile_width / 2);
-        auto tile_width = u->radius;
-        m_sc2.debug().DebugBoxOut( 
-            sc2::Point3D(u->pos.x - tile_width, u->pos.y - tile_width, max_z + 2.0f)
-            , sc2::Point3D(u->pos.x + tile_width, u->pos.y + tile_width, max_z - 5.0f)
-            , sc2::Colors::Green);
-        auto str = "(" + std::to_string(pos.x) + "," + std::to_string(pos.y) + ")\n";
-        m_sc2.debug().DebugTextOut(str, sc2::Point3D(pos.x, pos.y, max_z), sc2::Colors::Green, 20);
+        ////auto tile_width = std::max(u->radius, (float)m_tech_tree[u->unit_type].tile_width / 2);
+        //auto tile_width = u->radius;
+        //m_sc2.debug().DebugBoxOut( 
+        //    sc2::Point3D(u->pos.x - tile_width, u->pos.y - tile_width, max_z + 2.0f)
+        //    , sc2::Point3D(u->pos.x + tile_width, u->pos.y + tile_width, max_z - 5.0f)
+        //    , sc2::Colors::Green);
+        //auto str = "(" + std::to_string(pos.x) + "," + std::to_string(pos.y) + ")\n";
+        //m_sc2.debug().DebugTextOut(str, sc2::Point3D(pos.x, pos.y, max_z), sc2::Colors::Green, 20);
     }
 
 }

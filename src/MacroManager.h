@@ -37,11 +37,12 @@ public:
     void unitIdle(const sc2::Unit* unit) override;
 
 private:
-	struct Builder
-	{
-		const sc2::Unit* unit;
-		sc2::UnitOrder order_bak;
-	};
+    struct Order
+    {
+        const sc2::Unit* unit;
+        sc2::ABILITY_ID command;
+    };
+    std::optional<Order> m_current_order = {};
     bool canAfford(BuildOrder::value_type item);
     void executeBuildOrder();
     void checkProbes();
@@ -52,7 +53,7 @@ private:
     BuildOrder m_build_order; //BUILD_*; TRAIN_PROBE
     sc2::utils::TechTree m_tech_tree;
     std::set<const sc2::Unit*> m_pylons;
-    std::set<const sc2::Unit*> m_builders;
+    std::set<sc2::Tag> m_builders;
 
     sc2::utils::Map& m_map;
 };
