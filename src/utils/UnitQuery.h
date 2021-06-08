@@ -43,6 +43,30 @@ constexpr auto in_radius(const Point2D& center, int radius)
         return sc2::DistanceSquared2D(center, u.pos) <= radius * radius;
     };
 }
+constexpr auto target(const ObservationInterface& obs, sc2::UNIT_TYPEID target_type)
+{
+    return [&obs, target_type](const auto& u) constexpr
+    {
+        if (u.orders.empty())
+        {
+            return false;
+        }
+        auto target_unit = obs.GetUnit(u.orders.front().target_unit_tag);
+        return target_unit && target_unit->unit_type == target_type;
+    };
+}
+
+inline bool harvester(const sc2::Unit& u)
+{
+    return !u.orders.empty() && (u.orders.front().ability_id == sc2::ABILITY_ID::HARVEST_GATHER
+        || (u.orders.front().ability_id == sc2::ABILITY_ID::HARVEST_RETURN)
+        );
+}
+
+inline bool idle(const sc2::Unit& u)
+{
+    return u.orders.empty();
+}
 
 template<typename Pred1, typename Pred2,
      typename std::enable_if< std::is_invocable_v<Pred1, const sc2::Unit&>
@@ -76,6 +100,8 @@ constexpr auto not(Pred p)
     };
 }
 
-const Unit* closest(const sc2::Unit* unit, std::vector<const sc2::Unit*> objects);
+const Unit* closest(const sc2::Unit* unit, const std::vector<const sc2::Unit*>& objects);
+const Unit* closest(const sc2::Point2D& pos, const std::vector<const sc2::Unit*>& objects);
 
 }
+

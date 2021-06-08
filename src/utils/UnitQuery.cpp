@@ -6,15 +6,20 @@
 namespace sc2
 {
 
-const Unit* closest(const sc2::Unit* unit, std::vector<const sc2::Unit*> objects)
+const Unit* closest(const sc2::Point2D& pos, const std::vector<const sc2::Unit*>& objects)
 {
     assert(!objects.empty());
     return *std::min_element(objects.cbegin()
         , objects.cend()
-        , [unit](const auto a, const auto b) {
-            return DistanceSquared2D(unit->pos, a->pos)
-                < DistanceSquared2D(unit->pos, b->pos);
+        , [&pos](const auto a, const auto b) {
+            return DistanceSquared2D(pos, a->pos)
+                < DistanceSquared2D(pos, b->pos);
         });
 }
+const Unit* closest(const sc2::Unit* unit, const std::vector<const sc2::Unit*>& objects)
+{
+    return closest(unit->pos, objects);
+}
+
 
 }
