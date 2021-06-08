@@ -5,8 +5,11 @@
 #include "GridView.h"
 #include "UnitTraits.h"
 #include <functional>
+#include <set>
+#include <queue>
 #include <array>
 #include <fstream>
+#include <optional>
 
 namespace sc2::utils
 {
@@ -93,6 +96,87 @@ dump_grid(const TGrid& grid, const std::string& file_name)
     }
 }
 
+template<class T>
+std::optional<Point2DI> wave(const Grid<T>& g, const Point2DI& center, std::function<bool(const Point2DI&)> is_goal)
+{
+    std::queue<Point2DI> fringe;
+    fringe.push(center);
+
+    auto point_comparator = [](const Point2DI& a, const Point2DI& b) {
+        return std::tie(a.x, a.y) < std::tie(b.x, b.y);
+    };
+    std::set<Point2DI, decltype(point_comparator)> marked(point_comparator);
+    marked.insert( center );
+    while (!fringe.empty())
+    {
+        auto pixel = fringe.front();
+        fringe.pop();
+
+        if (is_goal(pixel))
+        {
+            return pixel;
+        }
+
+        auto variants = std::array<Point2DI, 6>{ Point2DI{pixel.x + 1, pixel.y}
+                                               , Point2DI{pixel.x, pixel.y + 1}
+                                               , Point2DI{pixel.x - 1, pixel.y}
+                                               , Point2DI{pixel.x, pixel.y - 1}
+                                               , Point2DI{pixel.x + 1, pixel.y + 1}
+                                               , Point2DI{pixel.x - 1, pixel.y - 1}
+        };
+
+        for (const auto& v : variants)
+        {
+            if (v.x >= g.getWidth() || v.x < 0)
+                continue;
+            if (v.y >= g.getHeight() || v.y < 0)
+                continue;
+
+            if (!marked.insert(v).second)
+            {
+                continue;
+            }
+            fringe.push(v);
+        }
+    }
+    return { };
+}
+
+template <class TGrid>
+void draw_cirle(TGrid& g, const Point2DI& center, int r, typename TGrid::ValueType value = {})
+{
+    const int x0 = center.x;
+    const int y0 = center.y;
+    int x = r;
+    int y = 0;
+    int err = 0;
+
+    while (x >= y)
+    {
+        g[{x0 + x, y0 + y}] = value;
+        g[{x0 + y, y0 + x}] = value;
+        g[{x0 - y, y0 + x}] = value;
+        g[{x0 - x, y0 + y}] = value;
+        g[{x0 - x, y0 - y}] = value;
+        g[{x0 - y, y0 - x}] = value;
+        g[{x0 + y, y0 - x}] = value;
+        g[{x0 + x, y0 - y}] = value;
+
+        if (err <= 0)
+        {
+            y += 1;
+            err += 2 * y + 1;
+        }
+
+        if (err > 0)
+        {
+            x -= 1;
+            err -= 2 * x + 1;
+        }
+    }
+
+}
+
 template<class T, class FootPrint>
 void
 apply_footprint(Grid<T>& g, const Point2DI& center, const FootPrint& footprint, T value)
@@ -120,4 +204,3 @@ place_building(Grid<T>& g, const sc2::Unit& u, T value)
 }
 
 }
-
