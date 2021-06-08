@@ -5,6 +5,7 @@ set(KUBOT_SOURCES
     Kubot.cpp
     Utils.h
     Utils.cpp
+    BuildOrderExecutor.h
     CannonRush.h
     CannonRush.cpp
     MacroManager.h
