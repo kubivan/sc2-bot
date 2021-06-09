@@ -50,18 +50,11 @@ TechTree make_tech_tree(const sc2::ObservationInterface& obs)
 Footprint
 get_footprint(const UNIT_TYPEID type)
 {
-    static const std::unordered_map<UNIT_TYPEID, Footprint> footprints = {
-         {UNIT_TYPEID::PROTOSS_PYLON, make_footprint<2,2>("##"
-                                                          "c#")}
-        ,{UNIT_TYPEID::PROTOSS_FORGE, make_footprint<3, 3>("###"
-                                                           "#c#"
-                                                           "###")}
-    };
     switch (type)
     {
     case UNIT_TYPEID::PROTOSS_PYLON:
         return make_footprint<2,2>("##"
-                                  "c#");
+                                   "c#");
     case UNIT_TYPEID::PROTOSS_FORGE:
         return make_footprint<3, 3>("###"
                                     "#c#"
@@ -69,8 +62,8 @@ get_footprint(const UNIT_TYPEID type)
     case UNIT_TYPEID::NEUTRAL_MINERALFIELD:
     case UNIT_TYPEID::NEUTRAL_MINERALFIELD750:
         return make_footprint<2,1>("#c");
-    case UNIT_TYPEID::NEUTRAL_VESPENEGEYSER:
     case UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER:
+    case UNIT_TYPEID::PROTOSS_ASSIMILATOR:
         return make_footprint<3,3>("###"
                                    "#c#"
                                    "###");
@@ -80,6 +73,10 @@ get_footprint(const UNIT_TYPEID type)
                                    "##c##"
                                    "#####"
                                    " ### ");
+    default:
+        return make_footprint<3,3>("###"
+                                   "#c#"
+                                   "###");
     }
 }
 

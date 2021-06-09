@@ -3,6 +3,8 @@
 #include <sc2api/sc2_unit.h>
 #include <array>
 
+#include <sc2api/sc2_interfaces.h>
+
 namespace sc2
 {
 class ObservationInterface;
@@ -56,6 +58,14 @@ struct TraitsData
 using TechTree = std::unordered_map<sc2::UNIT_TYPEID, TraitsData>;
 TechTree make_tech_tree(const ObservationInterface& obs);
 
+inline bool can_afford(sc2::UNIT_TYPEID item, sc2::utils::TechTree& tree, const sc2::ObservationInterface& obs)
+{
+    const auto minerals = obs.GetMinerals();
+    const auto vespene = obs.GetVespene();
+    const auto unit_traits = tree[item];
+    return minerals >= unit_traits.mineral_cost && vespene >= unit_traits.gas_cost;
+}
+
 struct Footprint
 {
     static const int MAX_SQUARE = 25;
@@ -66,7 +76,7 @@ struct Footprint
 
 template<int W, int H>
 constexpr Footprint
-make_footprint(const std::string_view& pattern)
+make_footprint(std::string_view pattern)
 {
     static_assert(W * H <= Footprint::MAX_SQUARE);
 
@@ -97,5 +107,4 @@ make_footprint(const std::string_view& pattern)
 }
 
 Footprint get_footprint(const UNIT_TYPEID type);
-
 }
