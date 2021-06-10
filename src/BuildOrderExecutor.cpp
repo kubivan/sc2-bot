@@ -12,15 +12,22 @@ find_warppos_near(SC2& sc2
     const auto max_iterations = 1000;
     auto pos = rand_point_near(center, radius);
     int i = 0;
-    while (map.m_topology[sc2::utils::get_tile_pos(pos)] != ' ')
+    auto units = sc2.obs().GetUnits(sc2::Unit::Self);
+    while (map.m_topology[sc2::utils::get_tile_pos(pos)] != ' '
+        || std::any_of(units.begin()
+            , units.end()
+            , [&](const auto& u) {
+                //TODO: more precise spacing options
+                return sc2::DistanceSquared2D(u->pos, pos) < 2;
+            }))
     {
         if (i++ > max_iterations)
             return {};
         pos = rand_point_near(center, radius);
     }
+
     return pos;
 }
-
 }
 
 //TODO: extract
@@ -85,7 +92,8 @@ void BuildOrderExecutor::schedule(const BuildOrder::BuildCommand& build_command)
             return sc2::Point2D(t->pos.x, t->pos.y);
         }, target);
 
-    const auto mineral_harvester = not(sc2::target(m_sc2.obs(), sc2::UNIT_TYPEID::PROTOSS_ASSIMILATOR)) && sc2::Filter(sc2::harvester);
+    //TODO: sc2::target(is_mineral)
+    const auto mineral_harvester = sc2::target(m_sc2.obs(), sc2::UNIT_TYPEID::NEUTRAL_MINERALFIELD) && sc2::Filter(sc2::harvester);
     const auto builder = sc2::closest(target_pos, m_sc2.obs().GetUnits(sc2::Unit::Self, mineral_harvester));
 
     std::visit([&](auto&& arg) {
@@ -119,39 +127,49 @@ void BuildOrderExecutor::schedule(const BuildOrder::ResearchCommand& research)
 
 void BuildOrderExecutor::schedule(const BuildOrder::TrainCommand& train)
 {
+    if (m_sc2.obs().GetFoodUsed() >= m_sc2.obs().GetFoodCap())
+        return;
+
     const auto ability_id = sc2::utils::command(train.unit);
-    if (ability_id == sc2::ABILITY_ID::TRAINWARP_STALKER)
+
+    auto can_warp = [&](const sc2::Unit& u)
     {
-        std::optional<sc2::Point2D> warp_pos;
-        for (auto* pylon : m_sc2.obs().GetUnits(sc2::Unit::Self, type(sc2::UNIT_TYPEID::PROTOSS_PYLON)))
-        {
-            warp_pos = find_warppos_near(m_sc2, m_map, pylon->pos, 5.f);
-        }
-        if (!warp_pos)
-            throw std::logic_error("CANNOT FIND WAPR POS!!!");
+        auto abs = m_sc2.query().GetAbilitiesForUnit(&u).abilities;
+        return std::find_if(abs.begin(), abs.end()
+            , [&](const auto& aa) { return aa.ability_id == ability_id; } ) != abs.end();
+    };
 
-        auto can_warp = [&](const sc2::Unit& u)
-        {
-            auto abs = m_sc2.query().GetAbilitiesForUnit(&u).abilities;
-            return std::find_if(abs.begin(), abs.end()
-                , [&](const auto& aa) { return aa.ability_id == ability_id; } ) != abs.end();
-        };
+    auto builgings_debug = m_sc2.obs().GetUnits(sc2::Unit::Self, type(sc2::utils::producer(train.unit)) && sc2::built);
 
-        auto builgings_debug = m_sc2.obs().GetUnits(sc2::Unit::Self, type(sc2::utils::producer(train.unit)) && sc2::built);
+    auto builgings = m_sc2.obs().GetUnits(sc2::Unit::Self, type(sc2::utils::producer(train.unit)) && sc2::built && can_warp); //TODO add idle check
+    if (builgings.empty())
+        return;
 
-        auto builgings = m_sc2.obs().GetUnits(sc2::Unit::Self, type(sc2::utils::producer(train.unit)) && sc2::built && can_warp); //TODO add idle check
-        if (builgings.empty())
-            return;
-
-        m_sc2.act().UnitCommand(builgings.front(), ability_id, *warp_pos);
-        m_order.orders().pop_front();
+    std::optional<sc2::Point2D> warp_pos;
+    for (auto* pylon : m_sc2.obs().GetUnits(sc2::Unit::Self, type(sc2::UNIT_TYPEID::PROTOSS_PYLON) && sc2::built))
+    {
+        warp_pos = find_warppos_near(m_sc2, m_map, pylon->pos, 6.5f);
+        if (warp_pos)
+            break;
     }
+    if (!warp_pos)
+        throw std::logic_error("CANNOT FIND WAPR POS!!!");
 
+    m_sc2.draw().drawTile(sc2::utils::get_tile_pos(*warp_pos), sc2::Colors::Red);
+
+    const auto& traits = m_tech_tree[train.unit];
+    m_gas_reserve += traits.gas_cost;
+    m_minerals_reserve += traits.mineral_cost;
+
+    m_sc2.act().UnitCommand(builgings.front(), ability_id, *warp_pos);
+    m_order.orders().pop_front();
 }
 
 void BuildOrderExecutor::step()
 {
     checkProbes();
+    //TODO: move out of build order
+    chronoBoost();
 
     if (m_order.orders().empty())
         return;
@@ -162,12 +180,6 @@ void BuildOrderExecutor::step()
     {
         return;
     }
-
-    //if (top_order.check && !top_order.check(m_sc2.obs()))
-    //{
-    //    return;
-    //}
-
 
     return std::visit([&](auto&& o) {return schedule(o); }, top_order);
 }
@@ -284,6 +296,36 @@ void BuildOrderExecutor::checkProbes()
     }
 }
 
+void BuildOrderExecutor::chronoBoost()
+{
+
+    auto buffs_empty = [&](const sc2::Unit& u)
+    {
+        return u.buffs.empty();
+    };
+
+    //TODO: check idle
+    auto cyb_cores = m_sc2.obs().GetUnits(sc2::Unit::Self, type(sc2::UNIT_TYPEID::PROTOSS_CYBERNETICSCORE) && buffs_empty);
+    if (cyb_cores.empty())
+    {
+        return; //chronoboosting only cybernetics core now
+    }
+
+    auto can_boost = [&](const sc2::Unit& u)
+    {
+        auto abilities = m_sc2.query().GetAbilitiesForUnit(&u).abilities;
+        return std::find_if(abilities.begin(), abilities.end()
+            , [&](const auto& a) { return a.ability_id == sc2::ABILITY_ID::EFFECT_CHRONOBOOST; } ) != abilities.end();
+    };
+
+    for (auto& nexus : m_sc2.obs().GetUnits(sc2::Unit::Self,
+        type(sc2::UNIT_TYPEID::PROTOSS_NEXUS) && can_boost
+        ))
+    {
+        m_sc2.act().UnitCommand(nexus, sc2::ABILITY_ID::EFFECT_CHRONOBOOST, cyb_cores.front());
+    }
+}
+
 BuildOrder make_4gate(const sc2::ObservationInterface& obs)
 {
     auto pylon_built = [](const sc2::ObservationInterface& obs) -> bool {
@@ -317,6 +359,7 @@ BuildOrder make_4gate(const sc2::ObservationInterface& obs)
         .build(sc2::UNIT_TYPEID::PROTOSS_ASSIMILATOR, PlacementHint::Default, assimilator_built)
         .build(sc2::UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, PlacementHint::Default, gate_built)
         .build(sc2::UNIT_TYPEID::PROTOSS_GATEWAY, PlacementHint::Default)
+        .build(sc2::UNIT_TYPEID::PROTOSS_PYLON, PlacementHint::Default)
         .build(sc2::UNIT_TYPEID::PROTOSS_PYLON, PlacementHint::Default)
         .research(sc2::UPGRADE_ID::WARPGATERESEARCH)  // target:none
         .build(sc2::UNIT_TYPEID::PROTOSS_GATEWAY, PlacementHint::Default)

@@ -26,6 +26,7 @@ TechTree make_tech_tree(const sc2::ObservationInterface& obs)
     res[sc2::UNIT_TYPEID::PROTOSS_WARPGATE] = { sc2::Race::Protoss, 0, 0, 0, 0, sc2::ABILITY_ID::MORPH_WARPGATE, 0, { sc2::UNIT_TYPEID::PROTOSS_GATEWAY }, { sc2::UPGRADE_ID::WARPGATERESEARCH } };
 
     res[sc2::UNIT_TYPEID::PROTOSS_PROBE] = { sc2::Race::Protoss, 0, 0, 1, 0, sc2::ABILITY_ID::TRAIN_PROBE, 0, { sc2::UNIT_TYPEID::PROTOSS_NEXUS }, {} };
+    res[sc2::UNIT_TYPEID::PROTOSS_STALKER] = { sc2::Race::Protoss, 0, 0, 1, 0, sc2::ABILITY_ID::TRAIN_STALKER, 0, { sc2::UNIT_TYPEID::PROTOSS_NEXUS }, {} };
 
     for (auto& [id, traits] : res)
     {
@@ -43,8 +44,6 @@ TechTree make_tech_tree(const sc2::ObservationInterface& obs)
 
         traits.tile_width = ability->footprint_radius * 2;
     }
-
-    res[sc2::UNIT_TYPEID::PROTOSS_PROBE] = { sc2::Race::Protoss, 0, 0, 1, 0, sc2::ABILITY_ID::TRAIN_PROBE, 0, { sc2::UNIT_TYPEID::PROTOSS_NEXUS }, {} };
 
     return res;
 }

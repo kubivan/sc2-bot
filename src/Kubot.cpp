@@ -50,6 +50,8 @@ Kubot::OnUnitCreated(const Unit* unit)
         return;
     }
 
+    m_map->place_building(*unit);
+
     for (auto& listener : m_listeners)
     {
         listener->unitCreated(unit);

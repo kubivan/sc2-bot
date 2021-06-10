@@ -37,8 +37,6 @@ void
 MacroManager::unitCreated(const sc2::Unit* unit)
 {
     auto& data = m_tech_tree[unit->unit_type];
-    m_map.place_building(*unit);
-
     //if (!m_build_order.empty())
     if (!m_build_order.empty() && m_build_order.front() == data.build_ability )
     {

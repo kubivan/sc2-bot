@@ -123,6 +123,7 @@ private:
     };
 
     void checkProbes();
+    void chronoBoost();
 
     SC2& m_sc2;
     sc2::utils::Map& m_map;

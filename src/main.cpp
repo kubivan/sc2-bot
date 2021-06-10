@@ -10,7 +10,7 @@ int main(int argc, char* argv[]) {
     Kubot bot;
     coordinator.SetParticipants({
         sc2::CreateParticipant(sc2::Race::Protoss, &bot),
-        sc2::CreateComputer(sc2::Race::Protoss, sc2::Difficulty::HardVeryHard)
+        sc2::CreateComputer(sc2::Race::Protoss, sc2::Difficulty::Easy)
         });
 
     coordinator.LaunchStarcraft();
@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
 
     while (coordinator.Update())
     {
-        sc2::SleepFor(15);
+       //sc2::SleepFor(5);
     }
 
     return 0;
