@@ -34,7 +34,12 @@ public:
         sc2::UPGRADE_ID upgrade;
     };
 
-    using Command = std::variant<BuildCommand, ResearchCommand>;
+    struct TrainCommand
+    {
+        sc2::UNIT_TYPEID unit;
+    };
+
+    using Command = std::variant<BuildCommand, ResearchCommand, TrainCommand>;
 
     BuildOrder& build(sc2::UNIT_TYPEID unit
         , PlacementHint hint = PlacementHint::Default
@@ -52,7 +57,7 @@ public:
 
     BuildOrder& train(sc2::UNIT_TYPEID unit)
     {
-        m_commands.push_back(BuildCommand{ unit, PlacementHint::Default, {} });
+        m_commands.push_back(TrainCommand{ unit });
         return *this;
     }
 
@@ -86,6 +91,8 @@ public:
 
     void schedule(const BuildOrder::ResearchCommand& research);
 
+    void schedule(const BuildOrder::TrainCommand& train);
+
     void step() override;
 
     void unitCreated(const sc2::Unit* unit) override;
@@ -101,6 +108,8 @@ public:
     bool canAfford(BuildOrder::ResearchCommand item);
 
     bool canAfford(BuildOrder::BuildCommand item);
+
+    bool canAfford(BuildOrder::TrainCommand item);
 
     bool canAfford(const BuildOrder::Command& command);
 

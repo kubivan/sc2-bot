@@ -1,28 +1,27 @@
 #include "BuildOrderExecutor.h"
 #include "Utils.h"
 
-//namespace {
-//
-//sc2::Point2D
-//find_warppos_near(SC2& sc2
-//    , const sc2::utils::Map& map
-//    , const sc2::Point2D& center
-//    , float radius
-//    , sc2::ABILITY_ID building)
-//{
-//    const auto max_iterations = 100000;
-//    auto pos = rand_point_near(center, radius);
-//    int i = 0;
-//    while (map.m_topology[sc2::utils::get_tile_pos(pos)] != ' ')
-//    {
-//        if (i++ > max_iterations)
-//            break;
-//        pos = rand_point_near(center, radius);
-//    }
-//    return pos;
-//}
-//
-//}
+namespace {
+
+std::optional<sc2::Point2D>
+find_warppos_near(SC2& sc2
+    , const sc2::utils::Map& map
+    , const sc2::Point2D& center
+    , float radius)
+{
+    const auto max_iterations = 1000;
+    auto pos = rand_point_near(center, radius);
+    int i = 0;
+    while (map.m_topology[sc2::utils::get_tile_pos(pos)] != ' ')
+    {
+        if (i++ > max_iterations)
+            return {};
+        pos = rand_point_near(center, radius);
+    }
+    return pos;
+}
+
+}
 
 //TODO: extract
 OrderTarget BuildOrderExecutor::findTarget(sc2::ABILITY_ID command) const
@@ -118,6 +117,38 @@ void BuildOrderExecutor::schedule(const BuildOrder::ResearchCommand& research)
     m_order.orders().pop_front();
 }
 
+void BuildOrderExecutor::schedule(const BuildOrder::TrainCommand& train)
+{
+    const auto ability_id = sc2::utils::command(train.unit);
+    if (ability_id == sc2::ABILITY_ID::TRAINWARP_STALKER)
+    {
+        std::optional<sc2::Point2D> warp_pos;
+        for (auto* pylon : m_sc2.obs().GetUnits(sc2::Unit::Self, type(sc2::UNIT_TYPEID::PROTOSS_PYLON)))
+        {
+            warp_pos = find_warppos_near(m_sc2, m_map, pylon->pos, 5.f);
+        }
+        if (!warp_pos)
+            throw std::logic_error("CANNOT FIND WAPR POS!!!");
+
+        auto can_warp = [&](const sc2::Unit& u)
+        {
+            auto abs = m_sc2.query().GetAbilitiesForUnit(&u).abilities;
+            return std::find_if(abs.begin(), abs.end()
+                , [&](const auto& aa) { return aa.ability_id == ability_id; } ) != abs.end();
+        };
+
+        auto builgings_debug = m_sc2.obs().GetUnits(sc2::Unit::Self, type(sc2::utils::producer(train.unit)) && sc2::built);
+
+        auto builgings = m_sc2.obs().GetUnits(sc2::Unit::Self, type(sc2::utils::producer(train.unit)) && sc2::built && can_warp); //TODO add idle check
+        if (builgings.empty())
+            return;
+
+        m_sc2.act().UnitCommand(builgings.front(), ability_id, *warp_pos);
+        m_order.orders().pop_front();
+    }
+
+}
+
 void BuildOrderExecutor::step()
 {
     checkProbes();
@@ -208,12 +239,25 @@ bool BuildOrderExecutor::canAfford(BuildOrder::ResearchCommand item)
     return minerals >= traits->mineral_cost && vespene >= traits->vespene_cost;
 }
 
-inline bool BuildOrderExecutor::canAfford(BuildOrder::BuildCommand item)
+bool BuildOrderExecutor::canAfford(BuildOrder::BuildCommand item)
 {
     const int minerals = m_sc2.obs().GetMinerals() - m_minerals_reserve;
     const int vespene = m_sc2.obs().GetVespene() - m_gas_reserve;
     const auto& unit_traits = m_tech_tree[item.building_type];
     return minerals >= unit_traits.mineral_cost && vespene >= unit_traits.gas_cost;
+}
+
+bool BuildOrderExecutor::canAfford(BuildOrder::TrainCommand item)
+{
+    const int minerals = m_sc2.obs().GetMinerals() - m_minerals_reserve;
+    const int vespene = m_sc2.obs().GetVespene() - m_gas_reserve;
+    const auto& units_data = m_sc2.obs().GetUnitTypeData();
+    const auto ability_id = sc2::utils::command(item.unit);
+    auto traits = std::find_if(units_data.begin(), units_data.end()
+        , [&](auto& u) {return item.unit == u.unit_type_id; });
+    assert(traits != units_data.end());
+
+    return minerals >= traits->mineral_cost && vespene >= traits->vespene_cost;
 }
 
 inline bool BuildOrderExecutor::canAfford(const BuildOrder::Command& command)
@@ -225,8 +269,11 @@ inline bool BuildOrderExecutor::canAfford(const BuildOrder::Command& command)
 
 bool BuildOrderExecutor::isComplete() const { return m_complete || m_order.orders().empty(); }
 
-inline void BuildOrderExecutor::checkProbes()
+void BuildOrderExecutor::checkProbes()
 {
+    if (m_sc2.obs().GetUnits(sc2::Unit::Self, type(sc2::UNIT_TYPEID::PROTOSS_PROBE)).size() >= 22)
+        return;
+
     for (auto& nexus : m_sc2.obs().GetUnits(
         type(sc2::UNIT_TYPEID::PROTOSS_NEXUS)
         && [](const auto& u) { return u.orders.empty(); }
@@ -272,7 +319,18 @@ BuildOrder make_4gate(const sc2::ObservationInterface& obs)
         .build(sc2::UNIT_TYPEID::PROTOSS_GATEWAY, PlacementHint::Default)
         .build(sc2::UNIT_TYPEID::PROTOSS_PYLON, PlacementHint::Default)
         .research(sc2::UPGRADE_ID::WARPGATERESEARCH)  // target:none
-        .train(sc2::UNIT_TYPEID::PROTOSS_STALKER);
+        .build(sc2::UNIT_TYPEID::PROTOSS_GATEWAY, PlacementHint::Default)
+        .build(sc2::UNIT_TYPEID::PROTOSS_GATEWAY, PlacementHint::Default)
+        .train(sc2::UNIT_TYPEID::PROTOSS_STALKER)
+        .train(sc2::UNIT_TYPEID::PROTOSS_STALKER)
+        .build(sc2::UNIT_TYPEID::PROTOSS_PYLON, PlacementHint::Default)
+        .train(sc2::UNIT_TYPEID::PROTOSS_STALKER)
+        .train(sc2::UNIT_TYPEID::PROTOSS_STALKER)
+        .build(sc2::UNIT_TYPEID::PROTOSS_PYLON, PlacementHint::Default)
+        .train(sc2::UNIT_TYPEID::PROTOSS_STALKER)
+        .train(sc2::UNIT_TYPEID::PROTOSS_STALKER)
+        .train(sc2::UNIT_TYPEID::PROTOSS_STALKER)
+        ;
     //.cast()
     //RESEARCH_WARPGATE
     return order;
