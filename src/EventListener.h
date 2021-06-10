@@ -2,15 +2,6 @@
 
 #include <sc2api/sc2_api.h>
 
-//class API
-//{
-//public:
-//    const sc2::ObservationInterface* obs;
-//    sc2::ActionInterface* actions;
-//    sc2::QueryInterface* query;
-//	sc2::DebugInterface* debug;
-//};
-
 class EventListener
 {
 public:
