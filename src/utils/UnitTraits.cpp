@@ -44,6 +44,8 @@ TechTree make_tech_tree(const sc2::ObservationInterface& obs)
         traits.tile_width = ability->footprint_radius * 2;
     }
 
+    res[sc2::UNIT_TYPEID::PROTOSS_PROBE] = { sc2::Race::Protoss, 0, 0, 1, 0, sc2::ABILITY_ID::TRAIN_PROBE, 0, { sc2::UNIT_TYPEID::PROTOSS_NEXUS }, {} };
+
     return res;
 }
 
