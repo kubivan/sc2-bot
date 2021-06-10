@@ -41,7 +41,7 @@ constexpr bool is_building_type(sc2::UNIT_TYPEID type)
     return false;
 }
 
-struct TraitsData
+struct BuildingTraits
 {
     sc2::Race race;
     int mineral_cost = 0; //mineral cost of the item
@@ -53,10 +53,19 @@ struct TraitsData
     std::vector<sc2::UnitTypeID> required_units; //owning ONE of these is required to make
     std::vector<sc2::UPGRADE_ID> required_upgrades; //having ALL of these is required to make
     int tile_width = 0;
+    //std::vector<sc2::UNIT_TYPEID> builders; //Who is responsible for creating building/upgrade
 };
 
-using TechTree = std::unordered_map<sc2::UNIT_TYPEID, TraitsData>;
-TechTree make_tech_tree(const ObservationInterface& obs);
+using TechTree = std::unordered_map<sc2::UNIT_TYPEID, BuildingTraits>;
+
+TechTree make_tech_tree(const sc2::ObservationInterface& obs);
+
+/*constexpr*/ ABILITY_ID command(UNIT_TYPEID unit);
+/*constexpr*/ ABILITY_ID command(UPGRADE_ID unit);
+
+/*constexpr*/ UNIT_TYPEID producer(sc2::ABILITY_ID command);
+/*constexpr*/ UNIT_TYPEID producer(sc2::UNIT_TYPEID unit);
+/*constexpr*/ UNIT_TYPEID producer(sc2::UPGRADE_ID unit);
 
 inline bool can_afford(sc2::UNIT_TYPEID item, sc2::utils::TechTree& tree, const sc2::ObservationInterface& obs)
 {
