@@ -9,6 +9,7 @@ set(KUBOT_SOURCES
     BuildOrderExecutor.cpp
     CannonRush.h
     CannonRush.cpp
+    Drawer.h
     MacroManager.h
     MacroManager.cpp
     EventListener.h

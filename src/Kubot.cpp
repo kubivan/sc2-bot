@@ -36,6 +36,7 @@ Kubot::OnStep()
     {
         listener->step();
     }
+    m_sc2.draw().update();
     m_sc2.debug().SendDebug();
 }
 
