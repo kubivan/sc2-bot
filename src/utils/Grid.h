@@ -42,7 +42,7 @@ public:
     const T&
     operator[](const Point2DI& point) const
     {
-        return m_grid[point.y * m_width + point.x];
+        return m_grid[size_t(point.y) * m_width + size_t(point.x)];
     }
 
     T&
