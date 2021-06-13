@@ -10,7 +10,7 @@ class Map
 {
 public:
     explicit Map(SC2& sc2);
-    void place_building(const Unit& u);
+    void place_building(const Unit& u, char mark = 'b');
 
 //private:
     SC2 m_sc2;

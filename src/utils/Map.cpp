@@ -37,6 +37,10 @@ Map::Map(SC2& sc2)
         m_topology[r] = '/';
     }
 
+    //using namespace sc2::utils;
+    //const auto is_mineral = type(UNIT_TYPEID::NEUTRAL_MINERALFIELD) || type(UNIT_TYPEID::NEUTRAL_MINERALFIELD750);
+    //const auto resources_around_probe = obs->GetUnits(is_resource && in_radius(probe_pos, 10 ));
+
     const auto minerals = m_sc2.obs().GetUnits([](const sc2::Unit& u) {
         return u.unit_type == sc2::UNIT_TYPEID::NEUTRAL_MINERALFIELD
             || u.unit_type == sc2::UNIT_TYPEID::NEUTRAL_MINERALFIELD750
@@ -68,15 +72,13 @@ Map::Map(SC2& sc2)
 }
 
 void
-Map::place_building(const Unit& u)
+Map::place_building(const Unit& u, char mark /*= 'b'*/)
 {
     if (!is_building_type(u.unit_type))
     {
         return;
     }
-
-    //TODO: marks
-    sc2::utils::place_building(m_topology, u, 'b');
+    sc2::utils::place_building(m_topology, u, mark);
     dump_grid(m_topology, "topology.txt");
 }
 
