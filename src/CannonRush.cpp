@@ -11,6 +11,8 @@
 constexpr float pylon_radius = 6.5f;
 constexpr float pylon_radius_squared = pylon_radius * pylon_radius;
 
+using namespace sc2;
+
 CannonRush::~CannonRush()
 {
 }
@@ -42,14 +44,13 @@ CannonRush::Rusher::step()
         maxZ = std::max(unit->pos.z, maxZ);
     }
     m_heading.z = maxZ;
-    //sc2::Normalize3D(m_heading);
     m_sc2.debug().DebugLineOut(m_unit->pos, m_heading, sc2::Colors::Blue);
 
     auto str = "(" + std::to_string(m_unit->pos.x) + ",\n" + std::to_string(m_unit->pos.y) + ",\n" + std::to_string(m_unit->facing) + ")";
     m_sc2.debug().DebugTextOut(str, sc2::Point3D(m_unit->pos.x, m_unit->pos.y, maxZ), sc2::Colors::Green, 20);
     auto camera_pos = m_sc2.obs().GetCameraPos() + sc2::Point2D(cos(m_unit->facing), sin(m_unit->facing));
 
-    auto enemies_to_evade = m_sc2.obs().GetUnits(sc2::enemy && not(sc2::building) && in_radius(this->m_unit->pos, 6));
+    auto enemies_to_evade = m_sc2.obs().GetUnits(enemy && not(building) && in_radius(this->m_unit->pos, 6));
     for (auto& enemy : enemies_to_evade)
     {
         auto heading = enemy->pos + sc2::Point3D{ cos(m_unit->facing), sin(m_unit->facing), 0 };
@@ -66,7 +67,6 @@ CannonRush::Rusher::step()
         auto evade_pos = m_unit->pos + evade_vector;
         if (m_sc2.query().PathingDistance(m_unit->pos, evade_pos) <= 0)
         {
-            std::cout << "Evading!! " << std::endl;
             auto minerals_patch = m_sc2.obs().GetUnits(type(sc2::UNIT_TYPEID::NEUTRAL_MINERALFIELD)).front();
             auto rand = rand_point_around(m_unit->pos, 8.);
             evade_pos = { rand.x, rand.y, 0 };
@@ -77,7 +77,7 @@ CannonRush::Rusher::step()
 
     if (m_closest_targets.empty())
     {
-        m_closest_targets = m_sc2.obs().GetUnits(sc2::enemy && sc2::building);
+        m_closest_targets = m_sc2.obs().GetUnits(enemy && building);
     }
     switch (m_state)
     {
@@ -133,10 +133,6 @@ void CannonRush::Rusher::rush()
     }
 
     m_target = m_closest_targets.back()->pos;
-    //const auto near_pylons = m_sc2.obs().GetUnits([&](auto& u) {
-    //	return u.unit_type == sc2::UNIT_TYPEID::PROTOSS_PYLON
-    //		&& sc2::DistanceSquared2D(m_target, u.pos) < pylon_radius_squared;
-    //	});
     const auto near_pylons = m_sc2.obs().GetUnits(
         type(sc2::UNIT_TYPEID::PROTOSS_PYLON) && in_radius(m_target, pylon_radius));
 
@@ -162,41 +158,8 @@ void CannonRush::Rusher::rush()
     }
 }
 
-//void CannonRush::Rusher::wander()
-//{
-//	//this behavior is dependent on the update rate, so this line must
-//	//be included when using time independent framerate.
-//	double JitterThisTimeSlice = 5;// m_dWanderJitter* m_pVehicle->TimeElapsed();
-//
-//	//first, add a small random vector to the target's position
-//	m_target += sc2::Point2D(sc2::GetRandomScalar() * JitterThisTimeSlice,
-//		sc2::GetRandomScalar() * JitterThisTimeSlice);
-//
-//	//reproject this new vector back on to a unit circle
-//	sc2::Normalize2D(m_target);
-//
-//	//increase the length of the vector to the same as the radius
-//	//of the wander circle
-//	m_target *= Rusher::vision; //m_dWanderRadius;
-//
-//	//move the target into a position WanderDist in front of the agent
-//	auto target = m_target + sc2::Point2D(this->vision, 0);
-//
-//	//project the target into world space
-//	auto Target = PointToWorldSpace(target,
-//		m_heading,
-//		m_unit->facing,
-//		m_unit->pos);
-//
-//	//and steer towards it
-//	return m_api->actions->UnitCommand(m_unit, sc2::ABILITY_ID::MOVE, Target - m_unit->pos, true);
-//}
-
 void CannonRush::Rusher::set_state(State newstate)
 {
-    std::stringstream ss;
-    ss << "Change state from " << (int)m_state << " to " << (int)newstate;
-    m_sc2.act().SendChat(ss.str());
     m_state = newstate;
 }
 
