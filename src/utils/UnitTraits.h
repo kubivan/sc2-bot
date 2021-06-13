@@ -115,5 +115,70 @@ make_footprint(std::string_view pattern)
     return res;
 }
 
-Footprint get_footprint(const UNIT_TYPEID type);
+template <typename Key, typename Value, std::size_t Size>
+struct ConstexprMap {
+  std::array<std::pair<Key, Value>, Size> data;
+  Value default_value;
+
+  [[nodiscard]] constexpr Value operator[](const Key &key) const
+  {
+    const auto itr =
+        std::find_if(begin(data), end(data),
+                     [&key](const auto &v) { return v.first == key; });
+    if (itr != end(data))
+    {
+      return itr->second;
+    }
+    else
+    {
+        return default_value;
+    }
+  }
+
+};
+
+constexpr auto
+get_footprint_map()
+{
+    constexpr std::array < std::pair<sc2::UNIT_TYPEID, Footprint>, 8> footprints =
+    {
+        std::make_pair(UNIT_TYPEID::PROTOSS_PYLON, make_footprint<2,2>("#c"
+                                                                       "##"))
+        , std::make_pair(UNIT_TYPEID::PROTOSS_FORGE, make_footprint<3, 3>("###"
+                                                                          "#c#"
+                                                                          "###"))
+        , std::make_pair(UNIT_TYPEID::NEUTRAL_MINERALFIELD, make_footprint<2,1>("#c"))
+        , std::make_pair(UNIT_TYPEID::NEUTRAL_MINERALFIELD750, make_footprint<2,1>("#c"))
+        , std::make_pair(UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER, make_footprint<3,3>("###"
+                                                                                     "#c#"
+                                                                                     "###"))
+        , std::make_pair(UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER, make_footprint<3,3>("###"
+                                                                                     "#c#"
+                                                                                     "###"))
+        , std::make_pair(UNIT_TYPEID::PROTOSS_ASSIMILATOR, make_footprint<3,3>("###"
+                                                                               "#c#"
+                                                                               "###"))
+        , std::make_pair(UNIT_TYPEID::PROTOSS_NEXUS, make_footprint<5,5>("#####"
+                                                                         "#####"
+                                                                         "##c##"
+                                                                         "#####"
+                                                                         "#####"))
+    };
+
+    constexpr auto footprint_map = ConstexprMap<UNIT_TYPEID, Footprint, 8>{
+        footprints, make_footprint<3,3>("###"
+                                        "#c#"
+                                        "###")
+    };
+
+    return footprint_map;
+}
+
+inline Footprint
+get_footprint(UNIT_TYPEID type)
+{
+    static constexpr auto map = get_footprint_map();
+    return map[type];
+}
+
 }

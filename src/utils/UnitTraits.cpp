@@ -48,47 +48,6 @@ TechTree make_tech_tree(const sc2::ObservationInterface& obs)
     return res;
 }
 
-Footprint
-get_footprint(const UNIT_TYPEID type)
-{
-    switch (type)
-    {
-    case UNIT_TYPEID::PROTOSS_PYLON:
-        return make_footprint<2,2>("#c"
-                                   "##");
-    case UNIT_TYPEID::PROTOSS_FORGE:
-        return make_footprint<3, 3>("###"
-                                    "#c#"
-                                    "###");
-    case UNIT_TYPEID::NEUTRAL_MINERALFIELD:
-    case UNIT_TYPEID::NEUTRAL_MINERALFIELD750:
-        return make_footprint<2,1>("#c");
-    case UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER:
-    case UNIT_TYPEID::PROTOSS_ASSIMILATOR:
-        return make_footprint<3,3>("###"
-                                   "#c#"
-                                   "###");
-    case UNIT_TYPEID::PROTOSS_NEXUS:
-        return make_footprint<5,5>("#####"
-                                   "#####"
-                                   "##c##"
-                                   "#####"
-                                   "#####");
-    default:
-        return make_footprint<3,3>("###"
-                                   "#c#"
-                                   "###");
-    }
-}
-
-//TechTree::TechTree(ObservationInterface& obs)
-//{
-//}
-//
-//const BuildingTraits& TechTree::operator[](UNIT_TYPEID unit) const
-//{
-//    // TODO: insert return statement here
-//}
 
 ABILITY_ID command(UNIT_TYPEID unit)
 {
@@ -1947,24 +1906,3 @@ UNIT_TYPEID producer(sc2::UPGRADE_ID upgrade)
 }
 
 }
-
-//// Protoss Units                                                                                      unit  bld   wrk    rfn    sup    hall   add
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_MOTHERSHIPCORE] = { sc2::Race::Protoss, 0, 0, 2, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::TRAIN_MOTHERSHIPCORE, 0, { UnitType(sc2::UNIT_TYPEID::PROTOSS_NEXUS, m_bot) }, {}, {} };
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_ZEALOT] = { sc2::Race::Protoss, 0, 0, 2, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::TRAIN_ZEALOT, sc2::ABILITY_ID::TRAINWARP_ZEALOT, { UnitType(sc2::UNIT_TYPEID::PROTOSS_GATEWAY, m_bot) }, {}, {} };
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_SENTRY] = { sc2::Race::Protoss, 0, 0, 2, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::TRAIN_SENTRY, sc2::ABILITY_ID::TRAINWARP_SENTRY, { UnitType(sc2::UNIT_TYPEID::PROTOSS_GATEWAY, m_bot) }, { UnitType(sc2::UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, m_bot) }, {} };
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_STALKER] = { sc2::Race::Protoss, 0, 0, 2, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::TRAIN_STALKER, sc2::ABILITY_ID::TRAINWARP_STALKER, { UnitType(sc2::UNIT_TYPEID::PROTOSS_GATEWAY, m_bot) }, { UnitType(sc2::UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, m_bot) }, {} };
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_HIGHTEMPLAR] = { sc2::Race::Protoss, 0, 0, 2, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::TRAIN_HIGHTEMPLAR, sc2::ABILITY_ID::TRAINWARP_HIGHTEMPLAR, { UnitType(sc2::UNIT_TYPEID::PROTOSS_GATEWAY, m_bot) }, { UnitType(sc2::UNIT_TYPEID::PROTOSS_TEMPLARARCHIVE, m_bot) }, {} };
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_DARKTEMPLAR] = { sc2::Race::Protoss, 0, 0, 2, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::TRAIN_DARKTEMPLAR, sc2::ABILITY_ID::TRAINWARP_DARKTEMPLAR, { UnitType(sc2::UNIT_TYPEID::PROTOSS_GATEWAY, m_bot) }, { UnitType(sc2::UNIT_TYPEID::PROTOSS_DARKSHRINE, m_bot) }, {} };
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_ADEPT] = { sc2::Race::Protoss, 0, 0, 2, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::TRAIN_ADEPT, sc2::ABILITY_ID::TRAINWARP_ADEPT, { UnitType(sc2::UNIT_TYPEID::PROTOSS_GATEWAY, m_bot) }, { UnitType(sc2::UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, m_bot) }, {} };
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_COLOSSUS] = { sc2::Race::Protoss, 0, 0, 6, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::TRAIN_COLOSSUS,  0, { UnitType(sc2::UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, m_bot) }, { UnitType(sc2::UNIT_TYPEID::PROTOSS_ROBOTICSBAY, m_bot) }, {} };
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_DISRUPTOR] = { sc2::Race::Protoss, 0, 0, 3, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::TRAIN_DISRUPTOR, 0, { UnitType(sc2::UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, m_bot) }, { UnitType(sc2::UNIT_TYPEID::PROTOSS_ROBOTICSBAY, m_bot) }, {} };
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_WARPPRISM] = { sc2::Race::Protoss, 0, 0, 2, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::TRAIN_WARPPRISM, 0, { UnitType(sc2::UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, m_bot) }, {}, {} };
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_OBSERVER] = { sc2::Race::Protoss, 0, 0, 1, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::TRAIN_OBSERVER, 0, { UnitType(sc2::UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, m_bot) }, {}, {} };
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_IMMORTAL] = { sc2::Race::Protoss, 0, 0, 4, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::TRAIN_IMMORTAL, 0, { UnitType(sc2::UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, m_bot) }, {}, {} };
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_CARRIER] = { sc2::Race::Protoss, 0, 0, 6, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::TRAIN_CARRIER, 0, { UnitType(sc2::UNIT_TYPEID::PROTOSS_STARGATE, m_bot) }, { UnitType(sc2::UNIT_TYPEID::PROTOSS_FLEETBEACON, m_bot) }, {} };
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_ORACLE] = { sc2::Race::Protoss, 0, 0, 3, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::TRAIN_ORACLE, 0, { UnitType(sc2::UNIT_TYPEID::PROTOSS_STARGATE, m_bot) }, {}, {} };
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_PHOENIX] = { sc2::Race::Protoss, 0, 0, 2, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::TRAIN_PHOENIX, 0, { UnitType(sc2::UNIT_TYPEID::PROTOSS_STARGATE, m_bot) }, {}, {} };
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_VOIDRAY] = { sc2::Race::Protoss, 0, 0, 4, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::TRAIN_VOIDRAY, 0, { UnitType(sc2::UNIT_TYPEID::PROTOSS_STARGATE, m_bot) }, {}, {} };
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_TEMPEST] = { sc2::Race::Protoss, 0, 0, 4, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::TRAIN_TEMPEST, 0, { UnitType(sc2::UNIT_TYPEID::PROTOSS_STARGATE, m_bot) }, { UnitType(sc2::UNIT_TYPEID::PROTOSS_FLEETBEACON, m_bot) }, {} };
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_INTERCEPTOR, m_bot)] = { sc2::Race::Protoss, 0, 0, 0, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::BUILD_INTERCEPTORS, 0, { UnitType(sc2::UNIT_TYPEID::PROTOSS_CARRIER, m_bot) }, {}, {} };
-//m_unitTypeData[sc2::UNIT_TYPEID::PROTOSS_ORACLESTASISTRAP, m_bot)] = { sc2::Race::Protoss, 0, 0, 0, 0, true, false, false, false, false, false, false, sc2::ABILITY_ID::BUILD_STASISTRAP, 0, { UnitType(sc2::UNIT_TYPEID::PROTOSS_ORACLE, m_bot) }, {}, {} };
