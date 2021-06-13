@@ -93,7 +93,7 @@ constexpr auto operator||(Pred1 a, Pred2 b)
 template<typename Pred,
      typename std::enable_if< std::is_invocable_v<Pred, const sc2::Unit&>
     ,bool>::type = true>
-constexpr auto not(Pred p)
+constexpr auto not_a(Pred p)
 {
     return [p](const Unit& u) constexpr {
         return !p(u);

@@ -50,7 +50,7 @@ CannonRush::Rusher::step()
     m_sc2.debug().DebugTextOut(str, sc2::Point3D(m_unit->pos.x, m_unit->pos.y, maxZ), sc2::Colors::Green, 20);
     auto camera_pos = m_sc2.obs().GetCameraPos() + sc2::Point2D(cos(m_unit->facing), sin(m_unit->facing));
 
-    auto enemies_to_evade = m_sc2.obs().GetUnits(enemy && not(building) && in_radius(this->m_unit->pos, 6));
+    auto enemies_to_evade = m_sc2.obs().GetUnits(enemy && not_a(building) && in_radius(this->m_unit->pos, 6));
     for (auto& enemy : enemies_to_evade)
     {
         auto heading = enemy->pos + sc2::Point3D{ cos(m_unit->facing), sin(m_unit->facing), 0 };

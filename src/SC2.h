@@ -23,3 +23,4 @@ private:
     sc2::DebugInterface& m_debug;
     Drawer m_draw;
 };
+

@@ -63,7 +63,7 @@ MacroManager::buildingConstructionComplete(const sc2::Unit* unit)
 
         using namespace sc2;
 
-        auto harvesters = m_sc2.obs().GetUnits(harvester && not(target(m_sc2.obs(), sc2::UNIT_TYPEID::PROTOSS_ASSIMILATOR)));
+        auto harvesters = m_sc2.obs().GetUnits(harvester && not_a(target(m_sc2.obs(), sc2::UNIT_TYPEID::PROTOSS_ASSIMILATOR)));
         for (int i = 0; i < std::min(3, (int)harvesters.size()); ++i)
         {
             m_sc2.act().UnitCommand(harvesters[i], sc2::ABILITY_ID::HARVEST_GATHER, unit);

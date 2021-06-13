@@ -1,6 +1,5 @@
 #pragma once
 
-#include <utils/Grid.h>
 #include <sc2api/sc2_map_info.h>
 
 namespace sc2::utils
