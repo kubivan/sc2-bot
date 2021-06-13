@@ -94,7 +94,7 @@ make_footprint(std::string_view pattern)
     {
         for (int x = 0; x < W; ++x)
         {
-            if (pattern[y*W + x] == 'c')
+            if (pattern[size_t(y*W) + x] == 'c')
             {
                 center.x = x;
                 center.y = y;
@@ -107,9 +107,9 @@ make_footprint(std::string_view pattern)
     {
         for (int x = 0; x < W; ++x)
         {
-            const auto delta = pattern[y*W + x] == ' '
+            const auto delta = pattern[size_t(y*W) + x] == ' '
                 ? Point2DI{ 0,0 } : Point2DI{ x - center.x, center.y - y };
-            res.data[y * W + x] = delta;
+            res.data[size_t(y * W) + x] = delta;
         }
     }
     return res;
