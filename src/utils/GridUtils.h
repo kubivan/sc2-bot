@@ -174,16 +174,14 @@ void draw_cirle(TGrid& g, const Point2DI& center, int r, typename TGrid::ValueTy
             err -= 2 * x + 1;
         }
     }
-
 }
 
 template<class T, class FootPrint>
 void
 apply_footprint(Grid<T>& g, const Point2DI& center, const FootPrint& footprint, T value)
 {
-    for (int i = 0; i < footprint.size; ++i)
+    for (const auto& delta: footprint.data())
     {
-        const auto& delta = footprint.data[i];
         const auto pos = Point2DI{ center.x + delta.x, center.y + delta.y };
         g[pos] = value;
     }

@@ -53,7 +53,6 @@ struct BuildingTraits
     std::vector<sc2::UnitTypeID> required_units; //owning ONE of these is required to make
     std::vector<sc2::UPGRADE_ID> required_upgrades; //having ALL of these is required to make
     int tile_width = 0;
-    //std::vector<sc2::UNIT_TYPEID> builders; //Who is responsible for creating building/upgrade
 };
 
 using TechTree = std::unordered_map<sc2::UNIT_TYPEID, BuildingTraits>;
@@ -79,8 +78,11 @@ struct Footprint
 {
     static const int MAX_SQUARE = 25;
 
-    int size;
-    std::array<Point2DI, MAX_SQUARE> data;
+    constexpr int size() const noexcept { return m_size; }
+    constexpr const auto& data() const noexcept { return m_data; }
+
+    int m_size;
+    std::array<Point2DI, MAX_SQUARE> m_data;
 };
 
 template<int W, int H>
@@ -109,10 +111,39 @@ make_footprint(std::string_view pattern)
         {
             const auto delta = pattern[size_t(y*W) + x] == ' '
                 ? Point2DI{ 0,0 } : Point2DI{ x - center.x, center.y - y };
-            res.data[size_t(y * W) + x] = delta;
+            res.m_data[size_t(y * W) + x] = delta;
         }
     }
     return res;
+}
+
+constexpr std::array < std::pair<sc2::UNIT_TYPEID, Footprint>, 8> get_all_footprints()
+{
+    constexpr std::array < std::pair<sc2::UNIT_TYPEID, Footprint>, 8> footprints =
+    {
+          std::make_pair(UNIT_TYPEID::PROTOSS_NEXUS, make_footprint<5,5>("#####"
+                                                                         "#####"
+                                                                         "##c##"
+                                                                         "#####"
+                                                                         "#####"))
+        , std::make_pair(UNIT_TYPEID::PROTOSS_FORGE, make_footprint<3, 3>("###"
+                                                                          "#c#"
+                                                                          "###"))
+        , std::make_pair(UNIT_TYPEID::PROTOSS_ASSIMILATOR, make_footprint<3,3>("###"
+                                                                               "#c#"
+                                                                               "###"))
+        , std::make_pair(UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER, make_footprint<3,3>("###"
+                                                                                     "#c#"
+                                                                                     "###"))
+        , std::make_pair(UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER, make_footprint<3,3>("###"
+                                                                                     "#c#"
+                                                                                     "###"))
+        , std::make_pair(UNIT_TYPEID::PROTOSS_PYLON, make_footprint<2,2>("#c"
+                                                                         "##"))
+        , std::make_pair(UNIT_TYPEID::NEUTRAL_MINERALFIELD, make_footprint<2,1>("#c"))
+        , std::make_pair(UNIT_TYPEID::NEUTRAL_MINERALFIELD750, make_footprint<2,1>("#c"))
+    };
+    return footprints;
 }
 
 template <typename Key, typename Value, std::size_t Size>
@@ -179,6 +210,112 @@ get_footprint(UNIT_TYPEID type)
 {
     static constexpr auto map = get_footprint_map();
     return map[type];
+}
+
+
+struct PlacerResult
+{
+    static const int MAX_RESULT = 5; //5 building should be enough
+
+    std::array<std::pair<Point2DI, Footprint>, MAX_RESULT> data;
+    int size;
+};
+
+struct BuildingPlacerPattern;
+
+struct BuildingPlacerPattern
+{
+    static const int MAX_SIZE = 1024;
+    constexpr BuildingPlacerPattern(const char* data, int w, int h, int slots_count)
+    : m_slots_count(slots_count)
+        , m_width(w)
+        , m_height(h)
+    {
+        //static_assert(strlen(data) == w * h); TODO: check
+        for (int i = 0; i < w * h; ++i)
+        {
+            this->data[i] = data[i];
+        }
+    }
+
+    constexpr char operator[](const Point2DI& pos) const noexcept
+    {
+        return data[(pos.y + origin.y) * m_width + pos.x + origin.x];
+    }
+
+    constexpr int width() const noexcept { return m_width; }
+    constexpr int height() const noexcept{ return m_height; }
+    constexpr int slots_count() const noexcept{ return m_slots_count; }
+
+private:
+
+    int m_width;
+    int m_height;
+    std::array<char, MAX_SIZE> data = {}; //TODO: check size
+    int m_slots_count;
+    Point2DI origin = { 0,0 };
+
+};
+
+constexpr bool can_fit(const BuildingPlacerPattern placer, const Footprint& footprint, const Point2DI& center)
+{
+    for (const auto& delta : footprint.data())
+    {
+        const auto tile = Point2DI{ center.x + delta.x, center.y + delta.y };
+        if (tile.x < 0 || tile.x >= placer.width())
+            return false;
+        if (tile.y < 0 || tile.y >= placer.height())
+            return false;
+        if (auto pixel = placer[tile]; pixel != 'b')
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+constexpr std::optional<Point2DI> find_center(const BuildingPlacerPattern& pattern
+    , const Footprint& footprint
+    , Point2DI start_point
+)
+{
+    auto center = start_point;
+    auto w = pattern.width();
+    for (; center.y < pattern.height(); center.y++)
+    {
+        for (; center.x < pattern.width(); center.x++)
+        {
+            if (can_fit(pattern, footprint, center))
+                return center;
+        }
+        center.x = 0;
+    }
+    return {};
+}
+
+constexpr PlacerResult make_placer(const BuildingPlacerPattern& pattern)
+{
+    PlacerResult res{ {}, pattern.slots_count() };
+    std::optional<Point2DI> center;
+    for (int i = 0; i < pattern.slots_count(); ++i)
+    {
+        const auto start_point = center.has_value() ? Point2DI{center->x + 1, center->y} : Point2DI{ 0,0 };
+        for (const auto&[type, footprint]: get_all_footprints())
+        {
+            if (!is_building_type(type))
+            {
+                continue;
+            }
+            center = find_center(pattern, footprint, start_point);
+            if (center)
+            {
+                res.data[i] = std::make_pair(*center, footprint);
+                break;
+            }
+        }
+    }
+    return res;
 }
 
 }
