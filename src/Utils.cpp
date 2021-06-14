@@ -91,7 +91,7 @@ find_buildpos_near(SC2& sc2
     , float radius
     , sc2::ABILITY_ID building)
 {
-    const auto max_iterations = 100000;
+    const auto max_iterations = 10000;
     auto pos = rand_point_near(center, radius);
     int i = 0;
     while (!sc2.query().Placement(building, pos))
