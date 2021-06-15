@@ -97,7 +97,11 @@ dump_grid(const TGrid& grid, const std::string& file_name)
 }
 
 template<class T>
-std::optional<Point2DI> wave(const Grid<T>& g, const Point2DI& center, std::function<bool(const Point2DI&)> is_goal)
+std::optional<Point2DI> wave(const Grid<T>& g
+    , const Point2DI& center
+    , std::function<bool(const Point2DI&)> is_goal
+    , std::function<bool(const Point2DI&, const Point2DI&)> transition = {}
+)
 {
     std::queue<Point2DI> fringe;
     fringe.push(center);
@@ -130,6 +134,8 @@ std::optional<Point2DI> wave(const Grid<T>& g, const Point2DI& center, std::func
             if (v.x >= g.getWidth() || v.x < 0)
                 continue;
             if (v.y >= g.getHeight() || v.y < 0)
+                continue;
+            if (transition && !transition(pixel, v))
                 continue;
 
             if (!marked.insert(v).second)
@@ -176,9 +182,9 @@ void draw_cirle(TGrid& g, const Point2DI& center, int r, typename TGrid::ValueTy
     }
 }
 
-template<class T, class FootPrint>
+template<class T>
 void
-apply_footprint(Grid<T>& g, const Point2DI& center, const FootPrint& footprint, T value)
+apply_footprint(Grid<T>& g, const Point2DI& center, const Footprint& footprint, T value)
 {
     for (const auto& delta: footprint)
     {

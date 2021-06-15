@@ -5,20 +5,10 @@
 
 #include <utils/UnitTraits.h>
 
-constexpr auto ramp_pattern =
-"//bbb "
-"//bbb "
-"/ bbb "
-"bbb   "
-"bbb bb"
-"bbb bb";
-
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[]) 
+{
     sc2::Coordinator coordinator;
     coordinator.LoadSettings(argc, argv);
-
-    constexpr auto pattern_test = sc2::utils::BuildingPlacerPattern{ ramp_pattern, 6, 6, 3 };
-    constexpr auto placement_test = sc2::utils::make_placer(pattern_test);
 
     Kubot bot;
     coordinator.SetParticipants({
@@ -31,7 +21,7 @@ int main(int argc, char* argv[]) {
 
     while (coordinator.Update())
     {
-       //sc2::SleepFor(5);
+        sc2::SleepFor(10);
     }
 
     return 0;

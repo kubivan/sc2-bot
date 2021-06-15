@@ -82,6 +82,7 @@ struct FixedVector
     constexpr const T* begin() const { return &m_data[0]; }
     constexpr const T* end() const { return &m_data[m_size]; }
     constexpr T& operator[](size_t index) { return m_data[index]; }
+    constexpr const T& operator[](size_t index) const { return m_data[index]; }
     constexpr void push_back(const T& val)
     {
         if (m_size >= MaxSize)
@@ -91,12 +92,24 @@ struct FixedVector
         m_data[m_size++] = val;
     }
     constexpr size_t size() const { return m_size; }
+
+    constexpr bool count(const T& val) const
+    {
+        for (const auto& el : *this)
+            if (val == el)
+                return true;
+        return false;
+    }
 private:
-    std::array<T, MaxSize> m_data;
+    std::array<T, MaxSize> m_data = {};
     size_t m_size = 0;
 };
 
-using Footprint = FixedVector<Point2DI, 25>;
+struct Footprint : public FixedVector<Point2DI, 25>
+{
+    int width;
+    int height;
+}; 
 
 template<int W, int H>
 constexpr Footprint
@@ -118,12 +131,14 @@ make_footprint(std::string_view pattern)
     }
 
     auto res = Footprint(W * H);
+    res.width = W;
+    res.height = H;
     for (int y = 0; y < H; ++y)
     {
         for (int x = 0; x < W; ++x)
         {
             const auto delta = pattern[size_t(y*W) + x] == ' '
-                ? Point2DI{ 0,0 } : Point2DI{ x - center.x, center.y - y };
+                ? Point2DI{ 0,0 } : Point2DI{ x - center.x, y - center.y };
             res[size_t(y * W) + x] = delta;
         }
     }
@@ -184,35 +199,10 @@ struct ConstexprMap {
 constexpr auto
 get_footprint_map()
 {
-    constexpr std::array < std::pair<sc2::UNIT_TYPEID, Footprint>, 8> footprints =
-    {
-        std::make_pair(UNIT_TYPEID::PROTOSS_PYLON, make_footprint<2,2>("#c"
-                                                                       "##"))
-        , std::make_pair(UNIT_TYPEID::PROTOSS_FORGE, make_footprint<3, 3>("###"
-                                                                          "#c#"
-                                                                          "###"))
-        , std::make_pair(UNIT_TYPEID::NEUTRAL_MINERALFIELD, make_footprint<2,1>("#c"))
-        , std::make_pair(UNIT_TYPEID::NEUTRAL_MINERALFIELD750, make_footprint<2,1>("#c"))
-        , std::make_pair(UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER, make_footprint<3,3>("###"
-                                                                                     "#c#"
-                                                                                     "###"))
-        , std::make_pair(UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER, make_footprint<3,3>("###"
-                                                                                     "#c#"
-                                                                                     "###"))
-        , std::make_pair(UNIT_TYPEID::PROTOSS_ASSIMILATOR, make_footprint<3,3>("###"
-                                                                               "#c#"
-                                                                               "###"))
-        , std::make_pair(UNIT_TYPEID::PROTOSS_NEXUS, make_footprint<5,5>("#####"
-                                                                         "#####"
-                                                                         "##c##"
-                                                                         "#####"
-                                                                         "#####"))
-    };
-
     constexpr auto footprint_map = ConstexprMap<UNIT_TYPEID, Footprint, 8>{
-        footprints, make_footprint<3,3>("###"
-                                        "#c#"
-                                        "###")
+        get_all_footprints(), make_footprint<3,3>("###"
+                                                  "#c#"
+                                                  "###")
     };
 
     return footprint_map;
@@ -228,39 +218,39 @@ get_footprint(UNIT_TYPEID type)
 //5 building should be enough
 using PlacerResult = FixedVector<std::pair<Point2DI, Footprint>, 5>;
 
-{
-
 struct BuildingPlacerPattern
 {
     static const int MAX_SIZE = 1024;
-    constexpr BuildingPlacerPattern(const char* data, int w, int h, int slots_count)
+    constexpr BuildingPlacerPattern(const char* data
+        , int width
+        , int height
+        , int slots_count)
     : m_slots_count(slots_count)
-    , m_width(w)
-    , m_height(h)
+    , m_width(width)
+    , m_height(height)
     {
-        for (int i = 0; i < w * h; ++i)
+        for (int i = 0; i < width * height; ++i)
         {
-            this->data[i] = data[i];
+            this->m_data[i] = data[i];
         }
     }
 
     constexpr char operator[](const Point2DI& pos) const noexcept
     {
-        return data[(pos.y + origin.y) * m_width + pos.x + origin.x];
+        return m_data[static_cast<size_t>(pos.y) * m_width + pos.x];
     }
 
     constexpr int width() const noexcept { return m_width; }
     constexpr int height() const noexcept{ return m_height; }
     constexpr int slots_count() const noexcept{ return m_slots_count; }
 
-private:
+    auto& data() { return m_data; }
 
+private:
     int m_width;
     int m_height;
-    std::array<char, MAX_SIZE> data = {}; //TODO: check size
+    FixedVector<char, MAX_SIZE> m_data;
     int m_slots_count;
-    Point2DI origin = { 0,0 };
-
 };
 
 constexpr bool can_fit(const BuildingPlacerPattern placer, const Footprint& footprint, const Point2DI& center)
@@ -281,21 +271,32 @@ constexpr bool can_fit(const BuildingPlacerPattern placer, const Footprint& foot
     return true;
 }
 
-constexpr std::optional<Point2DI> find_center(const BuildingPlacerPattern& pattern
+//TODO: magic number!
+constexpr std::optional <std::pair<Point2DI, FixedVector<Point2DI, 1024>>>
+find_center(const BuildingPlacerPattern& pattern
     , const Footprint& footprint
-    , Point2DI start_point
+    , const FixedVector<Point2DI, 1024>& visited
 )
 {
-    auto center = start_point;
-    auto w = pattern.width();
-    for (; center.y < pattern.height(); center.y++)
+    for (int y = 0; y < pattern.height(); y++)
     {
-        for (; center.x < pattern.width(); center.x++)
+        for (int x = 0; x < pattern.width(); x++)
         {
+            Point2DI center{ x,y };
+            if (visited.count(center))
+            {
+                continue;
+            }
             if (can_fit(pattern, footprint, center))
-                return center;
+            {
+                FixedVector<Point2DI, 1024> new_visited = visited;
+                for (auto t : footprint)
+                {
+                    new_visited.push_back(Point2DI{ center.x + t.x, center.y + t.y });
+                }
+                return std::make_pair(center, new_visited);
+            }
         }
-        center.x = 0;
     }
     return {};
 }
@@ -303,20 +304,21 @@ constexpr std::optional<Point2DI> find_center(const BuildingPlacerPattern& patte
 constexpr PlacerResult make_placer(const BuildingPlacerPattern& pattern)
 {
     PlacerResult res;
-    std::optional<Point2DI> center;
+    FixedVector<Point2DI, 1024> visited;
     for (int i = 0; i < pattern.slots_count(); ++i)
     {
-        const auto start_point = center.has_value() ? Point2DI{center->x + 1, center->y} : Point2DI{ 0,0 };
+        //const auto start_point = center.has_value() ? Point2DI{center->x + 2, center->y + 2} : Point2DI{ 0,0 };
         for (const auto&[type, footprint]: get_all_footprints())
         {
             if (!is_building_type(type))
             {
                 continue;
             }
-            center = find_center(pattern, footprint, start_point);
+            auto center = find_center(pattern, footprint, visited);
             if (center)
             {
-                res.push_back(std::make_pair(*center, footprint));
+                visited = center->second;
+                res.push_back(std::make_pair(center->first, footprint));
                 break;
             }
         }
@@ -324,4 +326,14 @@ constexpr PlacerResult make_placer(const BuildingPlacerPattern& pattern)
     return res;
 }
 
+constexpr PlacerResult make_placer(const char* data
+        , int width
+        , int height
+        , int slots_count)
+{
+    return make_placer(BuildingPlacerPattern{data
+        , width
+        , height
+        , slots_count});
+}
 }
