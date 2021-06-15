@@ -180,7 +180,7 @@ template<class T, class FootPrint>
 void
 apply_footprint(Grid<T>& g, const Point2DI& center, const FootPrint& footprint, T value)
 {
-    for (const auto& delta: footprint.data())
+    for (const auto& delta: footprint)
     {
         const auto pos = Point2DI{ center.x + delta.x, center.y + delta.y };
         g[pos] = value;

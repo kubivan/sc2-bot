@@ -74,22 +74,35 @@ inline bool can_afford(sc2::UNIT_TYPEID item, sc2::utils::TechTree& tree, const 
     return minerals >= unit_traits.mineral_cost && vespene >= unit_traits.gas_cost;
 }
 
-struct Footprint
+template<typename T, size_t MaxSize>
+struct FixedVector
 {
-    static const int MAX_SQUARE = 25;
-
-    constexpr int size() const noexcept { return m_size; }
-    constexpr const auto& data() const noexcept { return m_data; }
-
-    int m_size;
-    std::array<Point2DI, MAX_SQUARE> m_data;
+    static const int MAX_SIZE = MaxSize;
+    constexpr FixedVector(size_t size = 0) : m_size(size) { }
+    constexpr const T* begin() const { return &m_data[0]; }
+    constexpr const T* end() const { return &m_data[m_size]; }
+    constexpr T& operator[](size_t index) { return m_data[index]; }
+    constexpr void push_back(const T& val)
+    {
+        if (m_size >= MaxSize)
+        {
+            throw std::range_error("FixedVector::push_back out of range");
+        }
+        m_data[m_size++] = val;
+    }
+    constexpr size_t size() const { return m_size; }
+private:
+    std::array<T, MaxSize> m_data;
+    size_t m_size = 0;
 };
+
+using Footprint = FixedVector<Point2DI, 25>;
 
 template<int W, int H>
 constexpr Footprint
 make_footprint(std::string_view pattern)
 {
-    static_assert(W * H <= Footprint::MAX_SQUARE);
+    static_assert(W * H <= Footprint::MAX_SIZE);
 
     auto center = Point2DI { -1, -1 };
     for (int y = 0; y < H; ++y)
@@ -104,14 +117,14 @@ make_footprint(std::string_view pattern)
         }
     }
 
-    auto res = Footprint{ W * H, {} };
+    auto res = Footprint(W * H);
     for (int y = 0; y < H; ++y)
     {
         for (int x = 0; x < W; ++x)
         {
             const auto delta = pattern[size_t(y*W) + x] == ' '
                 ? Point2DI{ 0,0 } : Point2DI{ x - center.x, center.y - y };
-            res.m_data[size_t(y * W) + x] = delta;
+            res[size_t(y * W) + x] = delta;
         }
     }
     return res;
@@ -212,26 +225,19 @@ get_footprint(UNIT_TYPEID type)
     return map[type];
 }
 
+//5 building should be enough
+using PlacerResult = FixedVector<std::pair<Point2DI, Footprint>, 5>;
 
-struct PlacerResult
 {
-    static const int MAX_RESULT = 5; //5 building should be enough
-
-    std::array<std::pair<Point2DI, Footprint>, MAX_RESULT> data;
-    int size;
-};
-
-struct BuildingPlacerPattern;
 
 struct BuildingPlacerPattern
 {
     static const int MAX_SIZE = 1024;
     constexpr BuildingPlacerPattern(const char* data, int w, int h, int slots_count)
     : m_slots_count(slots_count)
-        , m_width(w)
-        , m_height(h)
+    , m_width(w)
+    , m_height(h)
     {
-        //static_assert(strlen(data) == w * h); TODO: check
         for (int i = 0; i < w * h; ++i)
         {
             this->data[i] = data[i];
@@ -259,7 +265,7 @@ private:
 
 constexpr bool can_fit(const BuildingPlacerPattern placer, const Footprint& footprint, const Point2DI& center)
 {
-    for (const auto& delta : footprint.data())
+    for (const auto& delta : footprint)
     {
         const auto tile = Point2DI{ center.x + delta.x, center.y + delta.y };
         if (tile.x < 0 || tile.x >= placer.width())
@@ -296,7 +302,7 @@ constexpr std::optional<Point2DI> find_center(const BuildingPlacerPattern& patte
 
 constexpr PlacerResult make_placer(const BuildingPlacerPattern& pattern)
 {
-    PlacerResult res{ {}, pattern.slots_count() };
+    PlacerResult res;
     std::optional<Point2DI> center;
     for (int i = 0; i < pattern.slots_count(); ++i)
     {
@@ -310,7 +316,7 @@ constexpr PlacerResult make_placer(const BuildingPlacerPattern& pattern)
             center = find_center(pattern, footprint, start_point);
             if (center)
             {
-                res.data[i] = std::make_pair(*center, footprint);
+                res.push_back(std::make_pair(*center, footprint));
                 break;
             }
         }
