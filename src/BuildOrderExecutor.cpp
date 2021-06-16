@@ -134,9 +134,9 @@ void BuildOrderExecutor::schedule(const BuildOrder::TrainCommand& train)
 
     auto can_warp = [&](const sc2::Unit& u)
     {
-        auto abs = m_sc2.query().GetAbilitiesForUnit(&u).abilities;
-        return std::find_if(abs.begin(), abs.end()
-            , [&](const auto& aa) { return aa.ability_id == ability_id; } ) != abs.end();
+        const auto& abilities = m_sc2.query().GetAbilitiesForUnit(&u).abilities;
+        return std::ranges::find_if(abilities
+            , [&](const auto& a) { return a.ability_id == ability_id; } ) != abilities.end();
     };
 
     auto builgings_debug = m_sc2.obs().GetUnits(sc2::Unit::Self, type(sc2::utils::producer(train.unit)) && sc2::built);
@@ -186,12 +186,12 @@ void BuildOrderExecutor::step()
 
 void BuildOrderExecutor::unitCreated(const sc2::Unit* unit)
 {
-    auto active_order = std::remove_if(m_active_orders.begin(), m_active_orders.end(), [unit](const auto& order) {
+    auto active_orders = std::ranges::remove_if(m_active_orders, [unit](const auto& order) {
         return unit->unit_type == order.target && sc2::DistanceSquared2D(unit->pos, order.target_pos) <= 1;
         });
-    if (active_order != m_active_orders.end())
+    if (!active_orders.empty())
     {
-        m_active_orders.erase(active_order, m_active_orders.end());
+        m_active_orders.erase(active_orders.begin(), active_orders.end());
         const auto& unit_traits = m_tech_tree[unit->unit_type];
         m_gas_reserve -= unit_traits.gas_cost;
         m_minerals_reserve -= unit_traits.mineral_cost;
@@ -244,7 +244,7 @@ bool BuildOrderExecutor::canAfford(BuildOrder::ResearchCommand item)
     const int vespene = m_sc2.obs().GetVespene() - m_gas_reserve;
     const auto& upgrades = m_sc2.obs().GetUpgradeData();
     const auto ability_id = sc2::utils::command(item.upgrade);
-    auto traits = std::find_if(upgrades.begin(), upgrades.end()
+    auto traits = std::ranges::find_if(upgrades
         , [&](auto& u) {return ability_id == u.ability_id; });
     assert(traits != upgrades.end());
 
@@ -265,7 +265,7 @@ bool BuildOrderExecutor::canAfford(BuildOrder::TrainCommand item)
     const int vespene = m_sc2.obs().GetVespene() - m_gas_reserve;
     const auto& units_data = m_sc2.obs().GetUnitTypeData();
     const auto ability_id = sc2::utils::command(item.unit);
-    auto traits = std::find_if(units_data.begin(), units_data.end()
+    auto traits = std::ranges::find_if(units_data
         , [&](auto& u) {return item.unit == u.unit_type_id; });
     assert(traits != units_data.end());
 

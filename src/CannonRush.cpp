@@ -140,8 +140,7 @@ void CannonRush::Rusher::rush()
     {
         return m_sc2.act().UnitCommand(m_unit, sc2::ABILITY_ID::BUILD_PYLON, rand_point_near(m_target, 4.));
     }
-    if (!std::any_of(near_pylons.begin(),
-        near_pylons.end(),
+    if (!std::ranges::any_of(near_pylons,
         [](const sc2::Unit* u) {return u->build_progress == 1.f; }))
     {
         //no pylons built
@@ -177,8 +176,7 @@ void CannonRush::buildingConstructionComplete(const sc2::Unit* unit)
 
 void CannonRush::unitDestroyed(const sc2::Unit* unit)
 {
-    const auto found = std::find_if(m_rushers.begin()
-        , m_rushers.end()
+    const auto found = std::ranges::find_if(m_rushers
         , [&unit](const auto& rusher) {
             return rusher->unit()->tag == unit->tag;
         });
@@ -214,7 +212,7 @@ const sc2::Unit* CannonRush::get_free_probe() const
             {
                 return false;
             }
-            return m_rushers.end() == std::find_if(m_rushers.begin(), m_rushers.end()
+            return m_rushers.end() == std::ranges::find_if(m_rushers
                 , [&unit](const auto& rusher) {
                     return rusher->unit()->tag == unit.tag;
                 });

@@ -182,7 +182,7 @@ struct ConstexprMap {
   [[nodiscard]] constexpr Value operator[](const Key &key) const
   {
     const auto itr =
-        std::find_if(begin(data), end(data),
+        std::ranges::find_if(data,
                      [&key](const auto &v) { return v.first == key; });
     if (itr != end(data))
     {

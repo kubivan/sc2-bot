@@ -102,7 +102,7 @@ constexpr auto has_order(sc2::ABILITY_ID order)
 {
     return [order](const auto& u) constexpr -> bool
     {
-        return std::find_if(u.orders.begin(), u.orders.end()
+        return std::ranges::find_if(u.orders
             , [order](auto o) constexpr { return o.ability_id == order; })
             != u.orders.end();
     };
@@ -230,7 +230,7 @@ void
 MacroManager::debugOutput()
 {
     const auto units = m_sc2.obs().GetUnits();
-    const auto maxz_unit = *std::max_element(units.begin(), units.end()
+    const auto maxz_unit = *std::ranges::max_element(units
         , [](const auto& u1, const auto& u2) { return u1->pos.z < u2->pos.z; });
     const auto max_z = maxz_unit->pos.z;
 
@@ -264,9 +264,7 @@ bool
 MacroManager::canAfford(BuildOrder::value_type item)
 {
     const auto minerals = m_sc2.obs().GetMinerals();
-    auto building = std::find_if(
-        m_tech_tree.begin()
-        , m_tech_tree.end()
+    auto building = std::ranges::find_if(m_tech_tree
         , [item](const auto& kv) { return kv.second.build_ability == item; });
     return minerals >= building->second.mineral_cost;
 }
