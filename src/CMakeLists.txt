@@ -15,16 +15,18 @@ set(KUBOT_SOURCES
     EventListener.h
     SC2.h
     SC2.cpp
-    utils/GridView.h
-    utils/GridView.cpp
+    utils/BuildingPlacer.h
+    utils/BuildingPlacer.cpp
     utils/Grid.h
     utils/GridUtils.h
-    utils/Map.h
+    utils/GridView.cpp
+    utils/GridView.h
     utils/Map.cpp
-    utils/UnitQuery.h
+    utils/Map.h
     utils/UnitQuery.cpp
-    utils/UnitTraits.h
+    utils/UnitQuery.h
     utils/UnitTraits.cpp
+    utils/UnitTraits.h
     )
 
 add_executable(kubot ${KUBOT_SOURCES})

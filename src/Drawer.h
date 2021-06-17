@@ -32,6 +32,11 @@ public:
         m_callbacks.emplace_back( [&,x1, y1, x2, y2, color]() { m_debug.DebugLineOut(sc2::Point3D(x1, y1, terrainHeight({ x1, y1 }) + 0.2f), sc2::Point3D(x2, y2, terrainHeight({ x2, y2 }) + 0.2f), color); });
     }
 
+    void drawVerticalLine(const sc2::Point2D point, const sc2::Color& color)
+    {
+        m_callbacks.emplace_back( [&,point, color]() { m_debug.DebugLineOut(sc2::Point3D(point.x, point.y, terrainHeight({ point.x, point.y }) + 0.2f), sc2::Point3D(point.x, point.y, terrainHeight({ point.x, point.y }) + 0.2f + 5), color); });
+    }
+
     void drawLine(const sc2::Point2D& p1, const sc2::Point2D& p2, const sc2::Color& color)
     {
         drawLine(p1.x, p1.y, p2.x, p2.y, color);

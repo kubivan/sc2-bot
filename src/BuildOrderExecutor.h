@@ -5,17 +5,10 @@
 #include <utils/Map.h>
 #include <utils/UnitTraits.h>
 #include <utils/UnitQuery.h>
+#include <utils/BuildingPlacer.h>
 
 #include <functional>
 #include <variant>
-
-enum class PlacementHint
-{
-    Default = 0,
-    WallOff,
-    Safe,
-    Proxy
-};
 
 class BuildOrder
 {
@@ -85,7 +78,7 @@ public:
         SC2& sc2, sc2::utils::Map& map, sc2::utils::TechTree tech_tree, BuildOrder build_order);
 
     //TODO: extract
-    OrderTarget findTarget(sc2::ABILITY_ID command) const;
+    OrderTarget findTarget(sc2::UNIT_TYPEID building, PlacementHint hint) const;
 
     void schedule(const BuildOrder::BuildCommand& build_command);
 
@@ -133,4 +126,6 @@ private:
     std::deque<ActiveCommand> m_active_orders;
     int m_gas_reserve = 0;
     int m_minerals_reserve = 0;
+
+    sc2::utils::BuildingPlacer m_building_placer;
 };

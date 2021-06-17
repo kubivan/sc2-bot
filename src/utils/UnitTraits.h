@@ -218,6 +218,12 @@ get_footprint(UNIT_TYPEID type)
 //5 building should be enough
 using PlacerResult = FixedVector<std::pair<Point2DI, Footprint>, 5>;
 
+struct BuildingPlacerPattern;
+constexpr std::optional <std::pair<Point2DI, FixedVector<Point2DI, 1024>>>
+find_center(const BuildingPlacerPattern& pattern
+    , const Footprint& footprint
+    , const FixedVector<Point2DI, 1024>& visited);
+
 struct BuildingPlacerPattern
 {
     static const int MAX_SIZE = 1024;
@@ -225,13 +231,31 @@ struct BuildingPlacerPattern
         , int width
         , int height
         , int slots_count)
-    : m_slots_count(slots_count)
-    , m_width(width)
+    : m_width(width)
     , m_height(height)
     {
         for (int i = 0; i < width * height; ++i)
         {
             this->m_data[i] = data[i];
+        }
+
+        FixedVector<Point2DI, 1024> visited;
+        for (int i = 0; i < slots_count; ++i)
+        {
+            for (const auto&[type, footprint]: get_all_footprints())
+            {
+                if (!is_building_type(type))
+                {
+                    continue;
+                }
+                auto center = find_center(*this, footprint, visited);
+                if (center)
+                {
+                    visited = center->second;
+                    m_footprints.push_back(std::make_pair(center->first, footprint));
+                    break;
+                }
+            }
         }
     }
 
@@ -242,15 +266,15 @@ struct BuildingPlacerPattern
 
     constexpr int width() const noexcept { return m_width; }
     constexpr int height() const noexcept{ return m_height; }
-    constexpr int slots_count() const noexcept{ return m_slots_count; }
 
-    auto& data() { return m_data; }
+    const auto& data() const { return m_data; }
+    const auto& footprints() const { return m_footprints; }
 
 private:
     int m_width;
     int m_height;
     FixedVector<char, MAX_SIZE> m_data;
-    int m_slots_count;
+    FixedVector<std::pair<Point2DI, Footprint>, 5> m_footprints;
 };
 
 constexpr bool can_fit(const BuildingPlacerPattern placer, const Footprint& footprint, const Point2DI& center)
@@ -301,39 +325,4 @@ find_center(const BuildingPlacerPattern& pattern
     return {};
 }
 
-constexpr PlacerResult make_placer(const BuildingPlacerPattern& pattern)
-{
-    PlacerResult res;
-    FixedVector<Point2DI, 1024> visited;
-    for (int i = 0; i < pattern.slots_count(); ++i)
-    {
-        //const auto start_point = center.has_value() ? Point2DI{center->x + 2, center->y + 2} : Point2DI{ 0,0 };
-        for (const auto&[type, footprint]: get_all_footprints())
-        {
-            if (!is_building_type(type))
-            {
-                continue;
-            }
-            auto center = find_center(pattern, footprint, visited);
-            if (center)
-            {
-                visited = center->second;
-                res.push_back(std::make_pair(center->first, footprint));
-                break;
-            }
-        }
-    }
-    return res;
-}
-
-constexpr PlacerResult make_placer(const char* data
-        , int width
-        , int height
-        , int slots_count)
-{
-    return make_placer(BuildingPlacerPattern{data
-        , width
-        , height
-        , slots_count});
-}
 }

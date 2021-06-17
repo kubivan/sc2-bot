@@ -31,15 +31,16 @@ find_warppos_near(SC2& sc2
 }
 
 //TODO: extract
-OrderTarget BuildOrderExecutor::findTarget(sc2::ABILITY_ID command) const
+OrderTarget BuildOrderExecutor::findTarget(sc2::UNIT_TYPEID building, PlacementHint hint) const
 {
-    if (command == sc2::ABILITY_ID::BUILD_ASSIMILATOR)
+    const auto ability_id = sc2::utils::command(building);
+    if (building == sc2::UNIT_TYPEID::PROTOSS_ASSIMILATOR)
     {
         const auto location = sc2::utils::wave(m_map.m_topology
             , sc2::utils::get_tile_pos(m_sc2.obs().GetStartLocation())
             , [&](const sc2::Point2DI& p)
             {
-                return m_map.m_topology[p] == '$' && m_sc2.query().Placement(command, { (float)p.x, (float)p.y });
+                return m_map.m_topology[p] == '$' && m_sc2.query().Placement(ability_id, { (float)p.x, (float)p.y });
             });
         if (!location)
         {
@@ -51,17 +52,7 @@ OrderTarget BuildOrderExecutor::findTarget(sc2::ABILITY_ID command) const
 
         return geyser;
     }
-    else if (command == sc2::ABILITY_ID::BUILD_PYLON)
-    {
-        return find_buildpos_near(m_sc2, m_sc2.obs().GetStartLocation(), 10.f, command);
-    }
-    else
-    {
-        auto builder = m_sc2.obs().GetUnits(sc2::Unit::Self, sc2::Filter(sc2::harvester) || sc2::Filter(sc2::idle)).front();
-        auto pylon = closest(builder, m_sc2.obs().GetUnits(
-            sc2::Unit::Self, type(sc2::UNIT_TYPEID::PROTOSS_PYLON)));
-        return find_buildpos_near(m_sc2, pylon->pos, 5.f, command);
-    }
+    return m_building_placer.placeBuilding(building, hint);
 }
 
 BuildOrderExecutor::BuildOrderExecutor(SC2& sc2, sc2::utils::Map& map, sc2::utils::TechTree tech_tree, BuildOrder build_order)
@@ -69,8 +60,9 @@ BuildOrderExecutor::BuildOrderExecutor(SC2& sc2, sc2::utils::Map& map, sc2::util
     , m_map(map)
     , m_tech_tree(tech_tree)
     , m_order(std::move(build_order))
+    , m_building_placer(sc2)
 {
-
+    m_building_placer.init(map);
 }
 
 void BuildOrderExecutor::schedule(const BuildOrder::BuildCommand& build_command)
@@ -81,7 +73,7 @@ void BuildOrderExecutor::schedule(const BuildOrder::BuildCommand& build_command)
     }
 
     const auto ability_id = sc2::utils::command(build_command.building_type);
-    const auto target = findTarget(ability_id);
+    const auto target = findTarget(build_command.building_type, build_command.hint);
 
     const auto target_pos = std::visit([](auto&& t) {
         //TODO: revise
@@ -357,7 +349,7 @@ BuildOrder make_4gate(const sc2::ObservationInterface& obs)
         .build(sc2::UNIT_TYPEID::PROTOSS_GATEWAY, PlacementHint::WallOff, pylon_built)
         .build(sc2::UNIT_TYPEID::PROTOSS_ASSIMILATOR)
         .build(sc2::UNIT_TYPEID::PROTOSS_ASSIMILATOR, PlacementHint::Default, assimilator_built)
-        .build(sc2::UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, PlacementHint::Default, gate_built)
+        .build(sc2::UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, PlacementHint::WallOff, gate_built)
         .build(sc2::UNIT_TYPEID::PROTOSS_GATEWAY, PlacementHint::Default)
         .build(sc2::UNIT_TYPEID::PROTOSS_PYLON, PlacementHint::Default)
         .build(sc2::UNIT_TYPEID::PROTOSS_PYLON, PlacementHint::Default)
