@@ -166,8 +166,8 @@ constexpr std::array < std::pair<sc2::UNIT_TYPEID, Footprint>, 8> get_all_footpr
         , std::make_pair(UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER, make_footprint<3,3>("###"
                                                                                      "#c#"
                                                                                      "###"))
-        , std::make_pair(UNIT_TYPEID::PROTOSS_PYLON, make_footprint<2,2>("#c"
-                                                                         "##"))
+        , std::make_pair(UNIT_TYPEID::PROTOSS_PYLON, make_footprint<2,2>("##"
+                                                                         "#c"))
         , std::make_pair(UNIT_TYPEID::NEUTRAL_MINERALFIELD, make_footprint<2,1>("#c"))
         , std::make_pair(UNIT_TYPEID::NEUTRAL_MINERALFIELD750, make_footprint<2,1>("#c"))
     };
