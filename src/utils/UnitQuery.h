@@ -4,6 +4,7 @@
 #include <sc2api/sc2_interfaces.h>
 
 #include <utils/UnitTraits.h>
+#include <concepts>
 
 namespace sc2
 {
@@ -34,7 +35,7 @@ constexpr auto progress_gt(float value)
 {
     assert(value <= 1);
     assert(value >= 0);
-    return [value] (const auto& u) constexpr { return u.build_progress > value; };
+    return [value](const auto& u) constexpr { return u.build_progress > value; };
 }
 
 constexpr auto in_radius(const Point2D& center, int radius)
@@ -68,10 +69,9 @@ inline bool idle(const sc2::Unit& u)
     return u.orders.empty();
 }
 
-template<typename Pred1, typename Pred2,
-     typename std::enable_if< std::is_invocable_v<Pred1, const sc2::Unit&>
-            && std::is_invocable_v<Pred2, const sc2::Unit&>
-    ,bool>::type = true>
+template<typename Pred1, typename Pred2>
+requires std::predicate<Pred1, const Unit&> &&
+         std::predicate<Pred2, const Unit&>
 constexpr auto operator&&(Pred1 a, Pred2 b)
 {
     return [a, b](const sc2::Unit& u) constexpr {
@@ -79,10 +79,9 @@ constexpr auto operator&&(Pred1 a, Pred2 b)
     };
 }
 
-template<typename Pred1, typename Pred2,
-     typename std::enable_if< std::is_invocable_v<Pred1, const sc2::Unit&>
-            && std::is_invocable_v<Pred2, const sc2::Unit&>
-    ,bool>::type = true>
+template<typename Pred1, typename Pred2>
+requires std::predicate<Pred1, const Unit&> &&
+         std::predicate<Pred2, const Unit&>
 constexpr auto operator||(Pred1 a, Pred2 b)
 {
     return [a, b](const Unit& u) constexpr {
@@ -90,10 +89,9 @@ constexpr auto operator||(Pred1 a, Pred2 b)
     };
 }
 
-template<typename Pred,
-     typename std::enable_if< std::is_invocable_v<Pred, const sc2::Unit&>
-    ,bool>::type = true>
-constexpr auto not_a(Pred p)
+template<typename P>
+requires std::predicate<P, const Unit&>
+constexpr auto not_a(P p)
 {
     return [p](const Unit& u) constexpr {
         return !p(u);
@@ -102,6 +100,4 @@ constexpr auto not_a(Pred p)
 
 const Unit* closest(const sc2::Unit* unit, const std::vector<const sc2::Unit*>& objects);
 const Unit* closest(const sc2::Point2D& pos, const std::vector<const sc2::Unit*>& objects);
-
 }
-
