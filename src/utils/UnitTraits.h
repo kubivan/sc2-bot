@@ -215,25 +215,21 @@ get_footprint(UNIT_TYPEID type)
     return map[type];
 }
 
-//5 building should be enough
-using PlacerResult = FixedVector<std::pair<Point2DI, Footprint>, 5>;
-
-struct BuildingPlacerPattern;
-constexpr std::optional <std::pair<Point2DI, FixedVector<Point2DI, 1024>>>
-find_center(const BuildingPlacerPattern& pattern
-    , const Footprint& footprint
-    , const FixedVector<Point2DI, 1024>& visited);
-
 struct BuildingPlacerPattern
 {
-    static const int MAX_SIZE = 1024;
+    static const int MAX_SQUARE = 10*10;
+    static const int MAX_SLOTS = 5;
     constexpr BuildingPlacerPattern(const char* data
         , int width
         , int height
-        , int slots_count)
+        , int slots_count
+        , char fitter)
     : m_width(width)
     , m_height(height)
+    , m_fitter(fitter)
     {
+        assert(slots_count <= MAX_SLOTS);
+        assert(width * height <= MAX_SQUARE);
         for (int i = 0; i < width * height; ++i)
         {
             this->m_data[i] = data[i];
@@ -251,8 +247,7 @@ struct BuildingPlacerPattern
                 auto center = find_center(*this, footprint, visited);
                 if (center)
                 {
-                    visited = center->second;
-                    m_footprints.push_back(std::make_pair(center->first, footprint));
+                    m_footprints.push_back(std::make_pair(*center, footprint));
                     break;
                 }
             }
@@ -266,63 +261,91 @@ struct BuildingPlacerPattern
 
     constexpr int width() const noexcept { return m_width; }
     constexpr int height() const noexcept{ return m_height; }
+    constexpr char fitter() const noexcept{ return m_fitter; }
 
     const auto& data() const { return m_data; }
     const auto& footprints() const { return m_footprints; }
 
 private:
+    using Visited = FixedVector<Point2DI, 1024>;
+    //constexpr std::optional <std::pair<Point2DI, Visited>>
+    //find_center(const BuildingPlacerPattern& pattern
+    //    , const Footprint& footprint
+    //    , const Visited& visited
+    //)
+    //{
+    //    for (int y = 0; y < pattern.height(); y++)
+    //    {
+    //        for (int x = 0; x < pattern.width(); x++)
+    //        {
+    //            Point2DI center{ x,y };
+    //            if (visited.count(center))
+    //            {
+    //                continue;
+    //            }
+    //            if (can_fit(footprint, center))
+    //            {
+    //                FixedVector<Point2DI, 1024> new_visited = visited;
+    //                for (auto t : footprint)
+    //                {
+    //                    new_visited.push_back(Point2DI{ center.x + t.x, center.y + t.y });
+    //                }
+    //                return std::make_pair(center, new_visited);
+    //            }
+    //        }
+    //    }
+    //    return {};
+    //}
+    constexpr std::optional <Point2DI>
+    find_center(const BuildingPlacerPattern& pattern
+        , const Footprint& footprint
+        , Visited& visited
+    )
+    {
+        for (int y = 0; y < pattern.height(); y++)
+        {
+            for (int x = 0; x < pattern.width(); x++)
+            {
+                Point2DI center{ x,y };
+                if (visited.count(center))
+                {
+                    continue;
+                }
+                if (can_fit(footprint, center))
+                {
+                    for (auto t : footprint)
+                    {
+                        visited.push_back(Point2DI{ center.x + t.x, center.y + t.y });
+                    }
+                    return center;
+                }
+            }
+        }
+        return {};
+    }
+    constexpr bool can_fit(const Footprint& footprint, const Point2DI& center) const
+    {
+        for (const auto& delta : footprint)
+        {
+            const auto tile = Point2DI{ center.x + delta.x, center.y + delta.y };
+            if (tile.x < 0 || tile.x >= width())
+                return false;
+            if (tile.y < 0 || tile.y >= height())
+                return false;
+            if (auto pixel = this->operator[](tile); pixel != 'b')
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     int m_width;
     int m_height;
-    FixedVector<char, MAX_SIZE> m_data;
+    char m_fitter;
+    FixedVector<char, MAX_SQUARE> m_data;
     FixedVector<std::pair<Point2DI, Footprint>, 5> m_footprints;
 };
-
-constexpr bool can_fit(const BuildingPlacerPattern placer, const Footprint& footprint, const Point2DI& center)
-{
-    for (const auto& delta : footprint)
-    {
-        const auto tile = Point2DI{ center.x + delta.x, center.y + delta.y };
-        if (tile.x < 0 || tile.x >= placer.width())
-            return false;
-        if (tile.y < 0 || tile.y >= placer.height())
-            return false;
-        if (auto pixel = placer[tile]; pixel != 'b')
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-//TODO: magic number!
-constexpr std::optional <std::pair<Point2DI, FixedVector<Point2DI, 1024>>>
-find_center(const BuildingPlacerPattern& pattern
-    , const Footprint& footprint
-    , const FixedVector<Point2DI, 1024>& visited
-)
-{
-    for (int y = 0; y < pattern.height(); y++)
-    {
-        for (int x = 0; x < pattern.width(); x++)
-        {
-            Point2DI center{ x,y };
-            if (visited.count(center))
-            {
-                continue;
-            }
-            if (can_fit(pattern, footprint, center))
-            {
-                FixedVector<Point2DI, 1024> new_visited = visited;
-                for (auto t : footprint)
-                {
-                    new_visited.push_back(Point2DI{ center.x + t.x, center.y + t.y });
-                }
-                return std::make_pair(center, new_visited);
-            }
-        }
-    }
-    return {};
-}
 
 }

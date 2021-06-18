@@ -32,7 +32,7 @@ constexpr auto placements = /*std::array<std::pair<PlacementHint, BuildingPlacer
                                                                              "/ bbb "
                                                                              "//bbb "
                                                                              "//bbb "
-                                                                             , 6, 6, 3})
+                                                                             , 6, 6, 3, '/'})
     ,
     std::make_pair(PlacementHint::WallOff, sc2::utils::BuildingPlacerPattern{" bbb//"
                                                                              " bbb//"
@@ -40,7 +40,7 @@ constexpr auto placements = /*std::array<std::pair<PlacementHint, BuildingPlacer
                                                                              "   bbb"
                                                                              "bb bbb"
                                                                              "bb bbb"
-                                                                             , 6, 6, 3})
+                                                                             , 6, 6, 3, '/'})
 };
 
 auto find_origin(const sc2::utils::Grid<char>& g
@@ -113,7 +113,6 @@ void BuildingPlacer::init(const Map& map)
 
 Point2D BuildingPlacer::placeBuilding(UNIT_TYPEID building, PlacementHint hint) const
 {
-    //TODO: hash footprint sizes not footprints itself
     ConstexprMap footprints = get_footprint_map();
     const auto& footprint = footprints[building];
     auto size = Size{ footprint.width, footprint.height };
@@ -130,7 +129,7 @@ Point2D BuildingPlacer::placeBuilding(UNIT_TYPEID building, PlacementHint hint) 
     m_sc2.draw().drawVerticalLine(res, sc2::Colors::Red);
     std::cout << res.x << " " << res.y << std::endl;
     positions.pop_back();
-    return res;//find_buildpos_near(m_sc2, res, 1.f, sc2::utils::command(building));
+    return res;
 }
 
 //TODO: graceful fallback
