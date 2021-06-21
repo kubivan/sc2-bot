@@ -27,6 +27,7 @@ set(KUBOT_SOURCES
     utils/UnitQuery.h
     utils/UnitTraits.cpp
     utils/UnitTraits.h
+    utils/Footprints.h
     )
 
 add_executable(kubot ${KUBOT_SOURCES})

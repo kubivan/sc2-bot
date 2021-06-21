@@ -113,8 +113,7 @@ void BuildingPlacer::init(const Map& map)
 
 Point2D BuildingPlacer::placeBuilding(UNIT_TYPEID building, PlacementHint hint) const
 {
-    ConstexprMap footprints = get_footprint_map();
-    const auto& footprint = footprints[building];
+    const auto& footprint = get_footprint(building);
     auto size = Size{ footprint.width, footprint.height };
 
     auto& positions = m_slots[hint][size];

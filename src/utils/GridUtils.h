@@ -4,6 +4,7 @@
 
 #include "GridView.h"
 #include "UnitTraits.h"
+#include "Footprints.h"
 #include <functional>
 #include <set>
 #include <queue>
