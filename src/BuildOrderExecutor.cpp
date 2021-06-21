@@ -36,18 +36,30 @@ OrderTarget BuildOrderExecutor::findTarget(sc2::UNIT_TYPEID building, PlacementH
     const auto ability_id = sc2::utils::command(building);
     if (building == sc2::UNIT_TYPEID::PROTOSS_ASSIMILATOR)
     {
+        auto transition = [&](const sc2::Point2DI& p1, const sc2::Point2DI& p2)
+        {
+            auto pixel_a = m_map.m_topology[p1];
+            auto pixel_b = m_map.m_topology[p2];
+            if (pixel_a == '#')
+                return false;
+            if (pixel_b == '#')
+                return false;
+            if (pixel_a == 'n')
+                return true;
+            return true;
+        };
         const auto location = sc2::utils::wave(m_map.m_topology
             , sc2::utils::get_tile_pos(m_sc2.obs().GetStartLocation())
             , [&](const sc2::Point2DI& p)
             {
                 return m_map.m_topology[p] == '$' && m_sc2.query().Placement(ability_id, { (float)p.x, (float)p.y });
-            });
+            }, transition);
         if (!location)
         {
             throw std::logic_error("CANNOT FIND VESPENE GEYSER!!!");
         }
 
-        const auto geyser = m_sc2.obs().GetUnits(sc2::type(sc2::UNIT_TYPEID::NEUTRAL_VESPENEGEYSER)
+        const auto geyser = m_sc2.obs().GetUnits(sc2::is_geyser
             && sc2::in_radius({ float(location->x), float(location->y) }, 3)).front();
 
         return geyser;
@@ -215,10 +227,12 @@ void BuildOrderExecutor::unitIdle(const sc2::Unit* unit)
 {
     if (unit->unit_type == sc2::UNIT_TYPEID::PROTOSS_PROBE)
     {
-        auto minerals = m_sc2.obs().GetUnits(type(sc2::UNIT_TYPEID::NEUTRAL_MINERALFIELD)
-            || type(sc2::UNIT_TYPEID::NEUTRAL_MINERALFIELD750));
+        auto nexus = closest(unit,m_sc2.obs().GetUnits(sc2::self && type(sc2::UNIT_TYPEID::PROTOSS_NEXUS)));
 
-        m_sc2.act().UnitCommand(unit, sc2::ABILITY_ID::HARVEST_GATHER, closest(unit, minerals));
+        auto mineral = closest(nexus, m_sc2.obs().GetUnits(type(sc2::UNIT_TYPEID::NEUTRAL_MINERALFIELD)
+            || type(sc2::UNIT_TYPEID::NEUTRAL_MINERALFIELD750)));
+
+        m_sc2.act().UnitCommand(unit, sc2::ABILITY_ID::HARVEST_GATHER, mineral);
     }
 }
 
@@ -264,7 +278,7 @@ bool BuildOrderExecutor::canAfford(BuildOrder::TrainCommand item)
     return minerals >= traits->mineral_cost && vespene >= traits->vespene_cost;
 }
 
-inline bool BuildOrderExecutor::canAfford(const BuildOrder::Command& command)
+bool BuildOrderExecutor::canAfford(const BuildOrder::Command& command)
 {
     bool res = false;
     std::visit([&](auto&& c) { res = canAfford(c); }, command);

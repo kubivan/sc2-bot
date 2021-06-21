@@ -52,12 +52,7 @@ Map::Map(SC2& sc2)
         apply_footprint(m_topology, get_tile_pos(m->pos), get_footprint(m->unit_type), '*');
     }
 
-    const auto geysers = m_sc2.obs().GetUnits([](const sc2::Unit& u) {
-        return u.unit_type == sc2::UNIT_TYPEID::NEUTRAL_VESPENEGEYSER
-            || u.unit_type == sc2::UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER
-            ;
-        });
-    for (const auto& g : geysers)
+    for (const auto& g : m_sc2.obs().GetUnits(is_geyser))
     {
         apply_footprint(m_topology, get_tile_pos(g->pos), get_footprint(g->unit_type), '$');
     }

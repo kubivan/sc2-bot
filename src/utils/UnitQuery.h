@@ -57,6 +57,15 @@ constexpr auto target(const ObservationInterface& obs, sc2::UNIT_TYPEID target_t
     };
 }
 
+inline bool is_geyser(const sc2::Unit& u)
+{
+    return u.unit_type == sc2::UNIT_TYPEID::NEUTRAL_VESPENEGEYSER
+        || u.unit_type == sc2::UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER
+        || u.unit_type == sc2::UNIT_TYPEID::NEUTRAL_PROTOSSVESPENEGEYSER
+        || u.unit_type == sc2::UNIT_TYPEID::NEUTRAL_PURIFIERVESPENEGEYSER
+        || u.unit_type == sc2::UNIT_TYPEID::NEUTRAL_SHAKURASVESPENEGEYSER;
+}
+
 inline bool harvester(const sc2::Unit& u)
 {
     return !u.orders.empty() && (u.orders.front().ability_id == sc2::ABILITY_ID::HARVEST_GATHER

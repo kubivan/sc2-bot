@@ -21,5 +21,4 @@ const Unit* closest(const sc2::Unit* unit, const std::vector<const sc2::Unit*>& 
     return closest(unit->pos, objects);
 }
 
-
 }
